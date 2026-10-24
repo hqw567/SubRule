@@ -1,3 +1,7 @@
+import maintainedRules from "./rules.json" with { type: "json" };
+export const communityRules = maintainedRules;
+export const defaultCommunityTemplate = communityRules[0];
+
 export const aethersailorProject =
   "https://github.com/Aethersailor/Custom_OpenClash_Rules";
 const templateBase =
@@ -16,77 +20,92 @@ export const aethersailorRules = [
   url: templateBase + file,
 }));
 
-// Standard-template smoke tests on 2026-09-12 with synthetic TEST-NET nodes,
-// target=clash, expand=false. This snapshot is not a live availability guarantee.
-type BackendPreset = {
+// Verified with public templates and synthetic nodes on 2026-10-24.
+export type BackendPreset = {
   value: string;
   label: string;
-  supportsAethersailor: boolean | null;
-  modern: boolean;
+  group: string;
   version: string;
-  diagnostic?: string;
+  capabilities: {
+    mrs: boolean | null;
+    geosite: boolean | null;
+    stash: boolean | null;
+  };
 };
 export const backendOptions: BackendPreset[] = [
   {
     value: "https://api.asailor.org",
-    label: "Aethersailor 增强后端",
-    supportsAethersailor: true,
-    modern: true,
-    version: "SubConverter-Extended v1.9.4",
+    label: "Aethersailor",
+    group: "增强后端",
+    version: "2026-10-24 Clash / Stash 检查通过",
+    capabilities: { mrs: true, geosite: true, stash: true },
   },
   {
     value: "https://sub-server.v2rayssr.com",
-    label: "V2RaySSR 规则兼容后端",
-    supportsAethersailor: true,
-    modern: true,
-    version: "SubConverter-Extended v1.6.1",
+    label: "V2RaySSR",
+    group: "增强后端",
+    version: "2026-10-24 Clash / Stash 检查通过",
+    capabilities: { mrs: true, geosite: true, stash: true },
   },
   {
     value: "https://api.v1.mk",
-    label: "友善的肥羊 · api.v1.mk",
-    supportsAethersailor: false,
-    modern: false,
-    version: "subconverter v1.9.9",
+    label: "肥羊 · 主站",
+    group: "通用后端",
+    version: "2026-10-24 MRS / Stash 检查未通过",
+    capabilities: { mrs: false, geosite: true, stash: false },
   },
   {
     value: "https://url.v1.mk",
-    label: "肥羊备用后端",
-    supportsAethersailor: false,
-    modern: false,
-    version: "subconverter v1.9.9",
+    label: "肥羊 · 备用",
+    group: "通用后端",
+    version: "2026-10-24 MRS / Stash 检查未通过",
+    capabilities: { mrs: false, geosite: true, stash: false },
   },
-  ...[
-    ["https://subapi.cmliussss.net", "CM · subapi.cmliussss.net", "subconverter v0.9.9-ecb63a9", "标准模板结构检查未通过"],
-    ["https://subapi.fxxk.dedyn.io", "CM 备用 · subapi.fxxk.dedyn.io", "subconverter v0.9.9-ecb63a9 · subapi-hk-vps", "标准模板结构检查未通过"],
-    ["https://edge-api-v1.ffqla.com", "FFQ", "subconverter v0.9.9-948f049", "MRS Provider 缺少 format: mrs"],
-    ["https://api.ytools.cc", "FFQ 备用", "subconverter v0.9.9-948f049", "MRS Provider 缺少 format: mrs"],
-    ["https://pub-api-1.bianyuan.xyz", "边缘 · pub-api-1.bianyuan.xyz", "subconverter v0.11.0-build114514", "标准模板结构检查未通过"],
-    ["https://api-suc.0z.gs", "瓜皮 · api-suc.0z.gs", "subconverter v0.9.9-ecb63a9", "标准模板结构检查未通过"],
-    ["https://api.wcc.best", "sub-web 作者 · api.wcc.best", "subconverter v0.9.0", "标准模板结构检查未通过"],
-    ["https://api.dler.io", "lhie1 · api.dler.io", "subconverter v0.9.0-a0d4eab", "标准模板结构检查未通过"],
-    ["https://bianyuan.xyz", "边缘 · bianyuan.xyz", "未识别版本", "返回内容未通过标准模板结构检查"],
-  ].map(([value, label, version, diagnostic]) => ({ value, label, version, diagnostic, modern: false, supportsAethersailor: false })),
-  ...[
-    ["https://subconverters.com", "订阅转换 · subconverters.com", "请求超时"],
-    ["https://sub.xeton.dev", "subconverter 作者 · sub.xeton.dev", "v0.9.0-a0d4eab；转换 HTTP 520"],
-    ["https://sub.id9.cc", "品云 · sub.id9.cc", "连接失败"],
-    ["https://api.nexconvert.com", "奶昔 · api.nexconvert.com", "转换 HTTP 403"],
-    ["https://sub.maoxiongnet.com", "猫熊 · sub.maoxiongnet.com", "连接失败"],
-    ["https://api.sublink.dev", "歪兔 · api.sublink.dev", "转换 HTTP 522"],
-    ["https://sub.xjz.im", "920.im · sub.xjz.im", "转换 HTTP 402"],
-    ["http://localhost:25500", "本地版 · localhost:25500", "需在本机启动服务后检测"],
-  ].map(([value, label, diagnostic]) => ({ value, label, diagnostic, version: "兼容性尚未验证", modern: false, supportsAethersailor: null })),
+  {
+    value: "http://localhost:25500",
+    label: "本地服务",
+    group: "自建后端",
+    version: "尚未验证",
+    capabilities: { mrs: null, geosite: null, stash: null },
+  },
 ];
-
 export function backendSnapshot(preset: BackendPreset) {
-  const detail = preset.diagnostic || (preset.supportsAethersailor ? "标准模板结构测试通过" : "MRS Provider 缺少 format: mrs");
-  return `${preset.version} · ${detail}（2026-09-12），可重新检测当前状态。`;
+  return preset.version;
+}
+export function backendCompatibility(
+  backend: string,
+  target: string,
+  capabilities: string[] = [],
+) {
+  const preset = getBackendPreset(backend);
+  const needs = [
+    ...new Set([...capabilities, ...(target === "stash" ? ["stash"] : [])]),
+  ];
+  const missing = needs.filter(
+    (c) =>
+      preset?.capabilities[c as keyof BackendPreset["capabilities"]] === false,
+  );
+  const unknown =
+    !preset ||
+    needs.some(
+      (c) =>
+        preset.capabilities[c as keyof BackendPreset["capabilities"]] == null,
+    );
+  return {
+    supported: !missing.length,
+    verified: !missing.length && !unknown,
+    missing,
+  };
 }
 
 // Service IDs are published by https://sub.ffq.la/api/config.
 export const shortServices = [
   { value: "v1mk", label: "v1.mk", note: "示例生成通过" },
-  { value: "dwzhila", label: "dwzhila.com", note: "示例生成通过；当前返回 urlgo.run 域名" },
+  {
+    value: "dwzhila",
+    label: "dwzhila.com",
+    note: "示例生成通过；当前返回 urlgo.run 域名",
+  },
   { value: "gfwmom", label: "gfw.mom", note: "示例生成通过" },
   { value: "gfwlat", label: "gfw.lat", note: "示例生成通过" },
   { value: "d1mk", label: "d1.mk", note: "示例生成通过" },

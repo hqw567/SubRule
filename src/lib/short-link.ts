@@ -1,3 +1,4 @@
+import { readTextLimited } from "./http-body.ts";
 import { shortServices } from "./catalog.ts";
 import { httpUrl } from "./converter.ts";
 
@@ -15,20 +16,27 @@ export function shortLinkPayload(input: unknown) {
   return { service: data.service as string, longUrl, alias };
 }
 
-export async function handleShortLink(request: Request, send: typeof fetch = fetch) {
-  const reply = (data: object, status = 200) => Response.json(data, {
-    status, headers: { "Cache-Control": "no-store" },
-  });
+export async function handleShortLink(
+  request: Request,
+  send: typeof fetch = fetch,
+) {
+  const reply = (data: object, status = 200) =>
+    Response.json(data, {
+      status,
+      headers: { "Cache-Control": "no-store" },
+    });
   const origin = request.headers.get("origin");
   if (origin && origin !== new URL(request.url).origin)
     return reply({ message: "请从本站发起短链请求" }, 403);
   let payload;
   try {
-    const text = await request.text();
-    if (text.length > 65000) throw new Error("请求内容过大");
+    const text = await readTextLimited(request, 65000);
     payload = shortLinkPayload(JSON.parse(text));
   } catch (e) {
-    return reply({ message: e instanceof Error ? e.message : "短链参数无效" }, 400);
+    return reply(
+      { message: e instanceof Error ? e.message : "短链参数无效" },
+      400,
+    );
   }
   try {
     // A fixed public gateway, never an arbitrary proxy target. No user URL is fetched here.
@@ -42,9 +50,16 @@ export async function handleShortLink(request: Request, send: typeof fetch = fet
     if (!response.ok) throw new Error(`短链网关返回 HTTP ${response.status}`);
     const data = await response.json();
     if (data.success !== true || typeof data.shortUrl !== "string")
-      throw new Error(typeof data.message === "string" ? data.message.slice(0,200) : "短链服务未返回有效链接");
+      throw new Error(
+        typeof data.message === "string"
+          ? data.message.slice(0, 200)
+          : "短链服务未返回有效链接",
+      );
     return reply({ shortUrl: httpUrl(data.shortUrl, "返回短链").href });
   } catch (e) {
-    return reply({ message: e instanceof Error ? e.message : "短链服务暂不可用" }, 502);
+    return reply(
+      { message: e instanceof Error ? e.message : "短链服务暂不可用" },
+      502,
+    );
   }
 }

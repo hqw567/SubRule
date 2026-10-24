@@ -1,104 +1,25 @@
 import {
   aethersailorResource,
-  aethersailorRules,
+  backendCompatibility,
+  defaultCommunityTemplate,
   backendOptions,
-  getBackendPreset,
 } from "./catalog.ts";
 
-export const clients = [
-  {
-    value: "clash",
-    label: "OpenClash / Mihomo / Clash Meta",
-    description: "现代 Mihomo 内核",
-    mark: "M",
-  },
-  {
-    value: "clash-verge",
-    label: "Clash Verge Rev",
-    description: "现代 Mihomo 内核",
-    mark: "V",
-  },
-  {
-    value: "flclash",
-    label: "FlClash",
-    description: "现代 Mihomo 内核",
-    mark: "F",
-  },
-  {
-    value: "nikki",
-    label: "Nikki",
-    description: "现代 Mihomo 内核",
-    mark: "N",
-  },
-  {
-    value: "clash-legacy",
-    label: "Clash for Windows",
-    description: "传统 Clash 内核",
-    mark: "C",
-  },
-  {
-    value: "clash-android",
-    label: "Clash for Android",
-    description: "传统 Clash 内核",
-    mark: "C",
-  },
-  {
-    value: "singbox",
-    label: "Sing-Box",
-    description: "跨平台通用客户端",
-    mark: "S",
-  },
-  {
-    value: "surge&ver=4",
-    label: "Surge",
-    description: "Surge 4 / 5",
-    mark: "↗",
-  },
-  {
-    value: "quanx",
-    label: "Quantumult X",
-    description: "iOS / iPadOS",
-    mark: "Q",
-  },
-  {
-    value: "shadowrocket",
-    label: "Shadowrocket",
-    description: "iOS / macOS",
-    mark: "↟",
-  },
-  { value: "loon", label: "Loon", description: "iOS / iPadOS", mark: "L" },
-  ...Object.entries({
-    mixed: "混合订阅",
-    v2ray: "V2Ray",
-    trojan: "Trojan",
-    ssr: "ShadowsocksR",
-    surfboard: "Surfboard",
-    quan: "Quantumult",
-    mellow: "Mellow",
-    "surge&ver=3": "Surge 3",
-    "surge&ver=2": "Surge 2",
-    clashr: "ClashR",
-    ss: "Shadowsocks (SIP002)",
-    sssub: "Shadowsocks Android",
-    ssd: "ShadowsocksD",
-    auto: "自动判断客户端",
-  }).map(([value, label]) => ({
-    value,
-    label,
-    description: "其他客户端",
-    mark: label[0],
-  })),
-];
-export const modernClientIds = ["clash", "clash-verge", "flclash", "nikki"];
-export function isModernClient(client: string) {
-  return modernClientIds.includes(client);
-}
-export function getClientTarget(client: string) {
-  return isModernClient(client) ||
-    ["clash-legacy", "clash-android"].includes(client)
-    ? "clash"
-    : client;
-}
+import {
+  bundledCatalog,
+  defaultTemplate,
+  findTemplate,
+  resourceIdentity,
+} from "./template-catalog.ts";
+import type { TemplateCatalog } from "./template-catalog.ts";
+
+import { isModernClient, getClientTarget, requireClient } from "./clients.ts";
+export {
+  clients,
+  modernClientIds,
+  isModernClient,
+  getClientTarget,
+} from "./clients.ts";
 
 export const flagOptions = [
   { key: "emoji", label: "国旗 Emoji", hint: "为节点名称添加地区标识" },
@@ -119,6 +40,7 @@ export const flagOptions = [
   { key: "singbox.ipv6", label: "Sing-Box IPv6", hint: "启用 IPv6 支持" },
 ] as const;
 export type Flag = (typeof flagOptions)[number]["key"];
+export type FlagValue = boolean | null;
 export type FormState = {
   source: string;
   client: string;
@@ -131,13 +53,15 @@ export type FormState = {
   interval: string;
   dev_id: string;
   diyua: string;
-  flags: Record<Flag, boolean>;
+  flags: Record<Flag, FlagValue>;
+  extraParams: [string, string][];
+  extraParamsTarget: string | null;
 };
 export const defaultForm: FormState = {
   source: "",
   client: "clash",
   backend: backendOptions[0].value,
-  config: aethersailorRules[0].url,
+  config: defaultTemplate.url,
   include: "",
   exclude: "",
   rename: "",
@@ -145,9 +69,9 @@ export const defaultForm: FormState = {
   interval: "",
   dev_id: "",
   diyua: "",
-  flags: Object.fromEntries(
-    flagOptions.map(({ key }) => [key, ["emoji", "new_name"].includes(key)]),
-  ) as Record<Flag, boolean>,
+  flags: recommendedFlags("clash", defaultTemplate.requiredFlags),
+  extraParams: [],
+  extraParamsTarget: null,
 };
 export function splitSources(source: string) {
   return source
@@ -176,79 +100,182 @@ const textKeys = [
   "dev_id",
   "diyua",
 ] as const;
-export function ruleCompatibility(form: FormState) {
-  const resource = aethersailorResource(form.config);
-  const errors: string[] = [];
-  const warnings: string[] = [];
-  if (resource === "unsupported")
-    errors.push(
-      "请选择 Aethersailor 的 Custom_Clash INI 转换模板；仓库页面、规则文件、YAML 配置或覆写模块不能用于此转换流程。",
-    );
-  if (resource === "template") {
-    if (!isModernClient(form.client))
-      errors.push(
-        "此规则需要 OpenClash / Mihomo / Clash Meta 等现代客户端，不能直接转换为当前客户端格式。",
-      );
-    if (form.flags.list)
-      errors.push("此规则需要完整配置，请关闭「仅输出节点」。");
-    if (!form.flags.new_name)
-      errors.push("此规则需要新版 Clash 字段，请开启「Clash 新字段」。");
-    if (form.flags.expand)
-      errors.push(
-        "此规则使用 MRS Rule Provider，请关闭「展开规则」，避免转换时丢失远程规则。",
-      );
-    const backend = getBackendPreset(form.backend);
-    if (backend && backend.supportsAethersailor === false)
-      warnings.push(
-        "此后端在 2026-09-12 的标准模板测试中未通过结构检查。建议选用配套后端，也可重新检测新版本。",
-      );
-    else if (!backend || backend.supportsAethersailor === null)
-      warnings.push(
-        "此后端兼容性尚未验证，可检测 GEOSITE / MRS 扩展；连接失败或版本号均不能作为不支持的依据。",
-      );
-  }
-  return { resource, errors, warnings };
+export function emptyFlags(): Record<Flag, FlagValue> {
+  return Object.fromEntries(
+    flagOptions.map(({ key }) => [key, null]),
+  ) as Record<Flag, FlagValue>;
 }
-export function applyRulePreset(form: FormState, config: string): FormState {
-  if (aethersailorResource(config) !== "template") return { ...form, config };
-  const preset = getBackendPreset(form.backend);
+export function recommendedFlags(
+  client: string,
+  required: Partial<Record<Flag, boolean>> = {},
+): Record<Flag, FlagValue> {
+  const flags = emptyFlags();
+  flags.insert = false;
+  if (isModernClient(client) || client === "stash") {
+    flags.list = false;
+    flags.expand = false;
+    if (isModernClient(client)) flags.new_name = true;
+  }
+  // Explicit UDP/TFO/TLS/certificate/rename overrides change the converter's
+  // native-provider routing. Inherit these unless the user requests otherwise.
+  return { ...flags, ...required };
+}
+export function flagApplies(key: string, client: string) {
+  const target = getClientTarget(client);
+  return (
+    !((key.startsWith("clash.") || key === "new_name") && target !== "clash") &&
+    !(key.startsWith("surge.") && !client.startsWith("surge")) &&
+    !(key.startsWith("singbox.") && client !== "singbox")
+  );
+}
+export function ruleCompatibility(
+  form: FormState,
+  catalog: TemplateCatalog = bundledCatalog,
+  options: { backendVerified?: boolean } = {},
+) {
+  const template = findTemplate(form.config, catalog);
+  const identity = resourceIdentity(form.config);
+  const missingPublishedTemplate =
+    !template &&
+    identity?.repository === catalog.repository.toLowerCase() &&
+    identity.ref === catalog.ref;
+  const resource =
+    template?.kind === "conversion-template"
+      ? "template"
+      : template ||
+          missingPublishedTemplate ||
+          aethersailorResource(form.config) === "unsupported"
+        ? "unsupported"
+        : null;
+  const errors: string[] = [],
+    warnings: string[] = [];
+  if (resource === "unsupported")
+    errors.push("此地址不是当前支持的 INI 转换模板，请从模板库重新选择。");
+  if (template?.kind === "conversion-template") {
+    if (
+      template.target === "clash"
+        ? !isModernClient(form.client)
+        : form.client !== "stash"
+    )
+      errors.push(
+        `此模板需要${template.target === "stash" ? " Stash" : " Mihomo 等现代客户端"}，请更换客户端或模板。`,
+      );
+    for (const [key, expected] of Object.entries(template.requiredFlags)) {
+      const value = form.flags[key as Flag];
+      // Omission keeps backend defaults; reject explicit contradictory requests only.
+      if (value !== null && value !== expected)
+        errors.push(
+          `此模板要求「${flagOptions.find((f) => f.key === key)?.label}」${expected ? "开启" : "关闭"}。`,
+        );
+    }
+    const support = backendCompatibility(
+      form.backend,
+      template.target,
+      template.capabilities,
+    );
+    if (!options.backendVerified && !support.supported)
+      errors.push(
+        `此后端缺少当前模板需要的 ${support.missing.map((c) => (c === "stash" ? "Stash" : c.toUpperCase())).join(" / ")} 支持，请选择增强后端；后端更新后可重新检测。`,
+      );
+    else if (!options.backendVerified && !support.verified)
+      warnings.push("当前后端尚未验证，可先检测模板兼容性。");
+  }
+  if (
+    form.extraParams.length &&
+    form.extraParamsTarget &&
+    form.extraParamsTarget !== getClientTarget(form.client)
+  )
+    warnings.push(
+      "已保留原链接的扩展参数；更换客户端后请确认其适用性，或清除扩展参数。",
+    );
+  return { resource, errors, warnings, template };
+}
+export function applyRulePreset(
+  form: FormState,
+  config: string,
+  catalog: TemplateCatalog = bundledCatalog,
+): FormState {
+  const template = findTemplate(config, catalog);
+  if (template?.kind !== "conversion-template") return { ...form, config };
   return {
     ...form,
     config,
-    client: isModernClient(form.client) ? form.client : "clash",
-    // Preserve custom deployments and either of the compatible service choices.
-    backend:
-      preset && preset.supportsAethersailor === false
-        ? backendOptions[0].value
-        : form.backend,
-    flags: { ...form.flags, list: false, new_name: true, expand: false },
+    client:
+      template.target === "stash"
+        ? "stash"
+        : isModernClient(form.client)
+          ? form.client
+          : "clash",
+    backend: !backendCompatibility(
+      form.backend,
+      template.target,
+      template.capabilities,
+    ).supported
+      ? backendOptions[0].value
+      : form.backend,
+    flags: { ...form.flags, ...template.requiredFlags },
   };
 }
-export function applyClientPreset(form: FormState, client: string): FormState {
-  const modern = isModernClient(client);
-  const backend = getBackendPreset(form.backend);
+export function applyClientPreset(
+  form: FormState,
+  client: string,
+  catalog: TemplateCatalog = bundledCatalog,
+): FormState {
+  requireClient(client);
+  const managed = isModernClient(client) || client === "stash";
+  const current = findTemplate(form.config, catalog);
+  const counterpart =
+    current &&
+    catalog.templates.find(
+      (t) =>
+        t.kind === "conversion-template" &&
+        t.variant === current.variant &&
+        t.profile === (current.profile || "custom-only") &&
+        t.target === getClientTarget(client),
+    );
+  let config = form.config;
+  if (managed && current?.target === getClientTarget(client))
+    config = form.config;
+  else if (managed && counterpart) config = counterpart.url;
+  else if (managed && !form.config)
+    config =
+      catalog.templates.find(
+        (t) =>
+          t.id ===
+          `${catalog.defaultProfile}/${getClientTarget(client)}/standard`,
+      )?.url || "";
+  else if (!managed && current) config = defaultCommunityTemplate.url;
+  const selected = findTemplate(config, catalog);
   return {
     ...form,
     client,
+    config,
     backend:
-      backend && backend.supportsAethersailor !== null && modern !== backend.modern
-        ? modern
-          ? backendOptions[0].value
-          : "https://api.v1.mk"
+      selected &&
+      !backendCompatibility(
+        form.backend,
+        selected.target,
+        selected.capabilities,
+      ).supported
+        ? backendOptions[0].value
         : form.backend,
-    config:
-      !modern && aethersailorResource(form.config) !== null
-        ? "https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/master/Clash/config/ACL4SSR_Online_Full_NoAuto.ini"
-        : modern && !isModernClient(form.client)
-          ? aethersailorRules[0].url
-          : form.config,
-    flags: modern
-      ? { ...form.flags, list: false, new_name: true, expand: false }
-      : { ...form.flags, expand: true },
+    flags: {
+      ...form.flags,
+      ...(selected?.kind === "conversion-template"
+        ? selected.requiredFlags
+        : {}),
+    },
   };
 }
-export function buildSubscription(form: FormState) {
-  const compatibility = ruleCompatibility(form);
+export function buildSubscription(
+  form: FormState,
+  catalog: TemplateCatalog = bundledCatalog,
+  options: { backendVerified?: boolean; checkBackend?: boolean } = {},
+) {
+  requireClient(form.client);
+  const compatibility = ruleCompatibility(form, catalog, {
+    backendVerified: options.backendVerified || options.checkBackend === false,
+  });
   if (compatibility.errors.length)
     throw new Error(compatibility.errors.join(" "));
   const sources = splitSources(form.source);
@@ -261,8 +288,7 @@ export function buildSubscription(form: FormState) {
   );
   if (invalid)
     throw new Error("订阅格式不正确，请使用完整的订阅链接或节点链接");
-  if (!clients.some((c) => c.value === form.client))
-    throw new Error("请选择支持的客户端");
+
   const backend = httpUrl(form.backend, "后端地址");
   backend.search = "";
   backend.hash = "";
@@ -281,23 +307,36 @@ export function buildSubscription(form: FormState) {
     params.set("interval", String(Math.round(days * 86400)));
   }
   for (const { key } of flagOptions) {
-    if ((key.startsWith("clash.") || key === "new_name") && target !== "clash")
-      continue;
-    if (key.startsWith("surge.") && !form.client.startsWith("surge")) continue;
-    if (key.startsWith("singbox.") && form.client !== "singbox") continue;
+    const value = form.flags[key];
+    if (value === null || !flagApplies(key, form.client)) continue;
     params.set(
       key,
-      key === "singbox.ipv6"
-        ? form.flags[key]
-          ? "1"
-          : "0"
-        : String(form.flags[key]),
+      key === "singbox.ipv6" ? (value ? "1" : "0") : String(value),
     );
+  }
+  const reserved = new Set([
+    "target",
+    "url",
+    "config",
+    "interval",
+    ...textKeys,
+    ...flagOptions
+      .filter((f) => flagApplies(f.key, form.client))
+      .map((f) => f.key),
+    ...(form.client.startsWith("surge") ? ["ver"] : []),
+  ]);
+  for (const [key, value] of form.extraParams) {
+    if (reserved.has(key))
+      throw new Error("扩展参数与表单字段冲突，请清除扩展参数后重试");
+    params.append(key, value);
   }
   backend.search = params.toString();
   return backend.href;
 }
-export function parseSubscription(value: string): FormState {
+export function parseSubscription(
+  value: string,
+  catalog: TemplateCatalog = bundledCatalog,
+): FormState {
   const url = httpUrl(value, "订阅地址"),
     p = url.searchParams;
   if (!p.get("target") || !p.get("url"))
@@ -306,11 +345,12 @@ export function parseSubscription(value: string): FormState {
     p.get("target") === "surge"
       ? `surge&ver=${p.get("ver") || "4"}`
       : p.get("target")!;
-  if (!clients.some((c) => c.value === client))
-    throw new Error(`暂不支持客户端：${client}`);
+  requireClient(client);
   const form: FormState = {
     ...defaultForm,
-    flags: { ...defaultForm.flags },
+    flags: emptyFlags(),
+    extraParams: [],
+    extraParamsTarget: null,
     client,
     source: p.get("url")!.split("|").join("\n"),
     backend: url.origin + url.pathname.replace(/\/sub\/?$/, ""),
@@ -319,9 +359,30 @@ export function parseSubscription(value: string): FormState {
   for (const key of textKeys) form[key] = p.get(key) || "";
   if (p.has("interval"))
     form.interval = String(Number(p.get("interval")) / 86400);
-  for (const { key } of flagOptions)
-    if (p.has(key)) form.flags[key] = ["true", "1"].includes(p.get(key)!);
-  buildSubscription(form);
+  const known = new Set([
+    "target",
+    "url",
+    "config",
+    "interval",
+    ...textKeys,
+    ...(client.startsWith("surge") ? ["ver"] : []),
+  ]);
+  for (const { key } of flagOptions) {
+    if (!flagApplies(key, client)) continue;
+    known.add(key);
+    if (p.has(key)) {
+      const raw = p.get(key)!.toLowerCase();
+      if (!["true", "false", "1", "0"].includes(raw))
+        throw new Error(`选项 ${key} 的值无效`);
+      form.flags[key] = ["true", "1"].includes(raw);
+    }
+  }
+  for (const key of known)
+    if (p.getAll(key).length > 1)
+      throw new Error(`参数 ${key} 重复，请先确认链接`);
+  form.extraParams = [...p.entries()].filter(([key]) => !known.has(key));
+  if (form.extraParams.length) form.extraParamsTarget = getClientTarget(client);
+  buildSubscription(form, catalog, { checkBackend: false });
   return form;
 }
 

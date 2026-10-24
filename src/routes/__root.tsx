@@ -13,14 +13,14 @@ export const Route = createRootRoute({
         content: "width=device-width, initial-scale=1",
       },
       {
-        title: "SubRule · 现代订阅转换工具",
+        title: "SubRule · 订阅与规则工作台",
       },
       {
         name: "description",
         content:
-          "轻松合并、定制并转换你的订阅。支持 Clash、Sing-Box、Surge 等客户端，内置 96 条远程规则。",
+          "合并订阅，选择扩展分流模板，生成 Mihomo、OpenClash 与 Stash 配置。",
       },
-      { name: "theme-color", content: "#168565" },
+      { name: "theme-color", content: "#1b6c80" },
     ],
     links: [
       {
