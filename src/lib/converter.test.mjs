@@ -35,7 +35,7 @@ import {
   backendCompatibility,
   communityRules,
 } from "./catalog.ts";
-import { handleShortLink, shortLinkPayload } from "./short-link.ts";
+import { DEFAULT_SHORT_API, requestShortLink } from "./short-link.ts";
 import {
   backendProbeUrl,
   readBackendVersion,
@@ -80,56 +80,58 @@ test("backend presets are unique; local deployments stay selected when matching 
   );
 });
 
-test("short gateway validates service IDs and URLs before making requests", async () => {
-  for (const input of [
-    null,
-    { service: "evil", longUrl: "https://example.com" },
-    { service: "v1mk", longUrl: "file:///etc/passwd" },
-    { service: "v1mk", longUrl: "https://example.com", alias: "https://bad" },
-  ])
-    assert.throws(() => shortLinkPayload(input));
-  let called = false;
-  const response = await handleShortLink(
-    new Request("http://localhost/api/shorten", {
-      method: "POST",
-      body: JSON.stringify({ service: "unknown" }),
-    }),
-    async () => {
-      called = true;
-      throw new Error("unexpected fetch");
-    },
-  );
-  assert.equal(response.status, 400);
-  assert.equal(called, false);
+test("browser short links validate input before contacting a service", async () => {
+  let calls = 0;
+  const send = async () => { calls++; throw new Error("unexpected fetch"); };
+  for (const [endpoint, url, alias] of [
+    ["file:///etc/passwd", "https://example.com", ""],
+    [DEFAULT_SHORT_API, "", ""],
+    [DEFAULT_SHORT_API, "javascript:alert(1)", ""],
+    [DEFAULT_SHORT_API, "https://example.com", "https://bad"],
+    [DEFAULT_SHORT_API, "https://example.com/" + "x".repeat(60000), ""],
+  ]) await assert.rejects(requestShortLink(endpoint, url, alias, send));
+  assert.equal(calls, 0);
 });
 
-test("short gateway uses a fixed endpoint, preserves encoded URLs, and handles upstream failures", async () => {
-  const payload = {
-    service: "gfwmom",
-    longUrl: "https://example.com/sub?url=a%2Bb",
-    alias: "demo",
-  };
-  const request = () =>
-    new Request("http://localhost/api/shorten", {
-      method: "POST",
-      body: JSON.stringify(payload),
+test("browser short links post FormData directly and preserve encoded URLs", async () => {
+  const url = "https://example.com/sub?url=a%2Bb&name=测试";
+  for (const endpoint of [DEFAULT_SHORT_API, "https://example.org/short"]) {
+    const result = await requestShortLink(endpoint, url, " demo ", async (target, init) => {
+      assert.equal(target, endpoint);
+      assert.equal(init.method, "POST");
+      assert.equal(init.headers, undefined);
+      assert.equal(init.credentials, "omit");
+      assert.ok(init.body instanceof FormData);
+      assert.equal(atob(init.body.get("longUrl")), new URL(url).href);
+      assert.equal(init.body.get("shortKey"), "demo");
+      return Response.json({ Code: 1, ShortUrl: "https://example.org/demo" });
     });
-  const response = await handleShortLink(request(), async (url, init) => {
-    assert.equal(url, "https://sub.ffq.la/api/shorten");
-    assert.equal(init.redirect, "error");
-    assert.deepEqual(JSON.parse(init.body), payload);
-    return Response.json({ success: true, shortUrl: "https://gfw.mom/demo" });
-  });
-  assert.deepEqual(await response.json(), { shortUrl: "https://gfw.mom/demo" });
+    assert.equal(result, "https://example.org/demo");
+  }
+});
+
+test("short-link failures and invalid replies do not trigger another service", async () => {
   for (const upstream of [
     new Response("bad gateway", { status: 502 }),
-    Response.json({ success: true, shortUrl: "javascript:alert(1)" }),
-    Response.json({ success: false, message: "alias exists" }),
+    new Response("<html>not JSON</html>"),
+    Response.json(null),
+    Response.json({ Code: 1, ShortUrl: "javascript:alert(1)" }),
+    Response.json({ Code: 0 }),
+    new Response("x".repeat(100001)),
   ]) {
-    const failed = await handleShortLink(request(), async () => upstream);
-    assert.equal(failed.status, 502);
-    assert.ok((await failed.json()).message);
+    let calls = 0;
+    await assert.rejects(requestShortLink(DEFAULT_SHORT_API, "https://example.com", "", async () => {
+      calls++;
+      return upstream;
+    }));
+    assert.equal(calls, 1);
   }
+  await assert.rejects(requestShortLink(DEFAULT_SHORT_API, "https://example.com", "", async () => {
+    throw new TypeError("Failed to fetch");
+  }), /跨域/);
+  await assert.rejects(requestShortLink(DEFAULT_SHORT_API, "https://example.com", "", async () => {
+    throw new DOMException("Timeout", "TimeoutError");
+  }), /超时/);
 });
 
 test("combines multiline sources, preserves embedded query parameters and removes duplicates", () => {
@@ -507,18 +509,7 @@ rules: ['RULE-SET,test,Group', 'MATCH,Group']`;
     probeKey(stash.backend, { ...profile, revision: "changed" }),
   );
 });
-test("HTTP body cap stops oversized streamed requests before calling the short-link gateway", async () => {
-  let called = false;
-  const req = new Request("https://example.com/api/shorten", {
-    method: "POST",
-    body: "x".repeat(65001),
-  });
-  const response = await handleShortLink(req, async () => {
-    called = true;
-    throw new Error("unexpected");
-  });
-  assert.equal(response.status, 400);
-  assert.equal(called, false);
+test("HTTP body cap cancels oversized streamed responses", async () => {
   const encoder = new TextEncoder();
   let cancelled = false;
   const stream = new ReadableStream({

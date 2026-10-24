@@ -98,20 +98,9 @@ export function backendCompatibility(
   };
 }
 
-// Service IDs are published by https://sub.ffq.la/api/config.
+// Browser POST verified with a synthetic URL on 2026-10-25.
 export const shortServices = [
-  { value: "v1mk", label: "v1.mk", note: "示例生成通过" },
-  {
-    value: "dwzhila",
-    label: "dwzhila.com",
-    note: "示例生成通过；当前返回 urlgo.run 域名",
-  },
-  { value: "gfwmom", label: "gfw.mom", note: "示例生成通过" },
-  { value: "gfwlat", label: "gfw.lat", note: "示例生成通过" },
-  { value: "d1mk", label: "d1.mk", note: "示例生成通过" },
-  { value: "dljtf", label: "dlj.tf", note: "本次测试 HTTP 502，可稍后重试" },
-  { value: "suoyt", label: "suo.yt", note: "示例生成通过" },
-  { value: "subcm", label: "sub.cm", note: "本次测试 HTTP 502，可稍后重试" },
+  { value: "v1mk", label: "v1.mk" },
 ];
 export function normalizeBackend(value: string) {
   const url = new URL(value.trim());

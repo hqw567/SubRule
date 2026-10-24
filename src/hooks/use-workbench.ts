@@ -1,3 +1,4 @@
+import { DEFAULT_SHORT_API, requestShortLink } from "#/lib/short-link";
 import { requireClient } from "#/lib/clients";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -41,7 +42,7 @@ export function useWorkbench(catalog: TemplateCatalog) {
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [reports, setReports] = useState<Record<string, BackendReport>>({});
-  const [shortApi, setShortApi] = useState("https://v1.mk/short");
+  const [shortApi, setShortApi] = useState(DEFAULT_SHORT_API);
   const [uploadApi, setUploadApi] = useState("https://subapi.v1.mk/sub.php");
   const [shortService, setShortService] = useState("v1mk"),
     [shortKey, setShortKey] = useState("");
@@ -147,31 +148,11 @@ export function useWorkbench(catalog: TemplateCatalog) {
     const current = result;
     setBusy("short");
     try {
-      let url: string;
-      if (shortService === "custom") {
-        const data = new FormData();
-        data.set("longUrl", btoa(current));
-        if (shortKey.trim()) data.set("shortKey", shortKey.trim());
-        const response = await requestJson(shortApi, data);
-        if (response.Code !== 1 || !response.ShortUrl)
-          throw new Error("短链服务未返回有效链接");
-        url = httpUrl(response.ShortUrl).href;
-      } else {
-        const response = await fetch("/api/shorten", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            service: shortService,
-            longUrl: current,
-            alias: shortKey,
-          }),
-          signal: AbortSignal.timeout(25000),
-        });
-        const data = await response.json();
-        if (!response.ok || !data.shortUrl)
-          throw new Error(data.message || "短链服务请求失败");
-        url = httpUrl(data.shortUrl).href;
-      }
+      const url = await requestShortLink(
+        shortService === "custom" ? shortApi : DEFAULT_SHORT_API,
+        current,
+        shortKey,
+      );
       if (activeResult.current === current) {
         setShortResult(url);
         toast.success("短链接已生成");

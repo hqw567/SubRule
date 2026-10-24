@@ -12,10 +12,28 @@ pnpm dev
 pnpm test
 pnpm typecheck
 pnpm build
-pnpm start
+pnpm preview
 ```
 
-生产输出为 `.output`，需要 Node 服务。预设短链使用本站 `/api/shorten`，不能只部署静态文件。
+保留 TanStack Start 的路由与组件，在构建时将首页预渲染为 HTML，后续交互全部由浏览器执行。发布目录为 **`dist/client`**，运行时只需要静态文件托管。Nitro 和本站短链接口已移除，不需要 Hono、Node 服务或 Worker 脚本。
+
+`pnpm preview` 使用独立的静态预览配置，在 `http://127.0.0.1:4319` 提供产物，不启用 SSR 回退。构建过程中的 `dist/server` 只用于预渲染，不发布。
+
+## Cloudflare 部署
+
+仓库的 `wrangler.jsonc` 只声明静态资源目录，没有 Worker 入口。
+
+```sh
+pnpm build
+pnpm deploy:check  # 本地打包验证，不发布、不需要登录
+pnpm deploy       # 登录 Cloudflare 后，重新构建并发布静态资源
+```
+
+使用 Cloudflare Workers 的 Git 集成时，构建命令填写 `pnpm build`，部署命令填写 `pnpm exec wrangler deploy`。无需启用付费 Workers 套餐或配置数据库。
+
+也可以部署到 Cloudflare Pages：构建命令 `pnpm build`，输出目录 `dist/client`，Node.js 版本 24。其他静态托管平台同样可用；为前端路由配置回退到 `index.html` 即可。
+
+[Cloudflare 静态资源文档](https://developers.cloudflare.com/workers/static-assets/) · [TanStack Start 静态预渲染](https://tanstack.com/start/latest/docs/framework/react/guide/static-prerendering)
 
 ## 规则与客户端
 
@@ -40,13 +58,17 @@ pnpm catalog:update
 pnpm catalog:update --from ../SubWeave-Rules/dist/catalog.json
 ```
 
-`Check SubWeave` 验证测试、类型和生产构建；`Update template catalog` 每天约北京时间 07:30 刷新内置目录，通过验证后仅提交目录文件。GitHub 调度可能延迟。网页托管若监听每次提交，可按路径跳过仅目录更新的部署。
+`Check SubWeave` 验证测试、类型、静态产物及 Cloudflare 打包；`Update template catalog` 每天约北京时间 07:30 刷新内置目录，通过验证后仅提交目录文件。GitHub 调度可能延迟。网页托管若监听每次提交，可按路径跳过仅目录更新的部署。
 
 目录 schema、目标/格式约束和客户端校验在 `src/lib/template-catalog.ts`。更新目录不会修改正在填写的订阅或自动替用户提交转换。
 
 ## 数据边界
 
-生成转换 URL 在浏览器完成，使用链接时由所选后端处理。预设短链会把完整 URL 发送至本站、FFQ 网关和所选短链服务；自定义短链 API 和配置托管从浏览器请求。配置上传仅在用户确认后执行。短链网关目标固定，并有输入字节上限、来源校验和请求超时；公开部署可在入口配置速率限制。
+生成转换 URL 在浏览器完成，使用链接时由所选转换后端处理。短链默认由浏览器直接请求 `https://v1.mk/short`，也可在设置中填写支持跨域访问的自定义短链 API。完整转换 URL 会发送给所选短链服务，网站托管端不接收短链 POST，也不经过聚合网关。配置托管仍由浏览器在用户确认后请求第三方服务。
+
+短链使用 FormData：`longUrl` 为完整 URL 的 Base64，`shortKey` 为可选后缀；返回值为 `{ "Code": 1, "ShortUrl": "https://..." }`。自定义 API 必须允许网站来源的 CORS 请求。响应有体积上限和超时，失败后不会自动把链接发送给其他服务。
+
+2026-10-25 使用公开示例 URL 验证了 v1.mk 的浏览器跨域 POST 和成功响应；这不代表第三方服务永久可用。需要本站聚合网关的其他预设已移除。
 
 历史默认只保留当前页面会话。主动开启持久化后，完整订阅 URL 存入此浏览器；关闭时移除保存的数据。接口地址仅在当前会话生效。
 

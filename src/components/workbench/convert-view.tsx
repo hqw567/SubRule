@@ -340,7 +340,7 @@ export function ConvertView({
                 />
               </Field>
               <p className="privacy-note">
-                完整订阅链接将发送至短链服务；预设服务还会经过本站及 FFQ 网关。
+                完整订阅链接将由浏览器直接发送至所选短链服务。
               </p>
               <Button
                 variant="outline"
