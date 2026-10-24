@@ -19,21 +19,34 @@ pnpm preview
 
 `pnpm preview` 使用独立的静态预览配置，在 `http://127.0.0.1:4319` 提供产物，不启用 SSR 回退。构建过程中的 `dist/server` 只用于预渲染，不发布。
 
-## Cloudflare 部署
+## Cloudflare 自动发布
 
-仓库的 `wrangler.jsonc` 只声明静态资源目录，没有 Worker 入口。
+GitHub Actions 是默认发布入口。代码或配置推送到 `main` 后，`Check and deploy SubWeave` 会依次安装锁定依赖、运行测试与类型检查、构建静态页面、检查部署包，然后上传 `dist/client`。发布后逐一比对线上首页与静态资源的 SHA-256，访问地址显示在该次 Actions 的 Summary 中。
+
+在本仓库 **Settings → Secrets and variables → Actions** 配置：
+
+| Secret | 内容 |
+| --- | --- |
+| `CLOUDFLARE_API_TOKEN` | 限定到部署账户的 Cloudflare API Token，具有 Workers Scripts 编辑及 Account Settings 读取权限 |
+| `CLOUDFLARE_ACCOUNT_ID` | 部署目标的 Cloudflare Account ID |
+
+不要把 Token 写入仓库或普通 Actions Variables。本地 `wrangler login` 不会给 GitHub Actions 提供凭据。
+
+PR 和其他分支只验证，不发布。主分支的发布按顺序执行；被更新主分支取代的旧提交会跳过发布。也可以在 Actions 页面手动运行 `Check and deploy SubWeave`，选择 `main`。仅 Markdown 文档变更不触发自动发布。
+
+模板目录定时任务提交新快照后会显式触发发布流程，因为使用 `GITHUB_TOKEN` 的提交不会自动触发新的 push 工作流。无需在 Cloudflare 再开启一套 Git 自动构建。
+
+`wrangler.jsonc` 只声明静态资源目录，没有 Worker 入口，不需要数据库或付费 Workers 套餐。手动发布仍可使用：
 
 ```sh
 pnpm build
 pnpm deploy:check  # 本地打包验证，不发布、不需要登录
-pnpm deploy       # 登录 Cloudflare 后，重新构建并发布静态资源
+pnpm deploy       # 配置本地 Cloudflare 身份后，构建并发布静态资源
 ```
 
-使用 Cloudflare Workers 的 Git 集成时，构建命令填写 `pnpm build`，部署命令填写 `pnpm exec wrangler deploy`。无需启用付费 Workers 套餐或配置数据库。
+也可以手动部署到 Cloudflare Pages：构建命令 `pnpm build`，输出目录 `dist/client`，Node.js 版本 24。其他静态托管平台同样可用；为前端路由配置回退到 `index.html` 即可。
 
-也可以部署到 Cloudflare Pages：构建命令 `pnpm build`，输出目录 `dist/client`，Node.js 版本 24。其他静态托管平台同样可用；为前端路由配置回退到 `index.html` 即可。
-
-[Cloudflare 静态资源文档](https://developers.cloudflare.com/workers/static-assets/) · [TanStack Start 静态预渲染](https://tanstack.com/start/latest/docs/framework/react/guide/static-prerendering)
+[Cloudflare GitHub Actions 文档](https://developers.cloudflare.com/workers/ci-cd/external-cicd/github-actions/) · [静态资源文档](https://developers.cloudflare.com/workers/static-assets/) · [TanStack Start 静态预渲染](https://tanstack.com/start/latest/docs/framework/react/guide/static-prerendering)
 
 ## 规则与客户端
 
@@ -58,7 +71,7 @@ pnpm catalog:update
 pnpm catalog:update --from ../SubWeave-Rules/dist/catalog.json
 ```
 
-`Check SubWeave` 验证测试、类型、静态产物及 Cloudflare 打包；`Update template catalog` 每天约北京时间 07:30 刷新内置目录，通过验证后仅提交目录文件。GitHub 调度可能延迟。网页托管若监听每次提交，可按路径跳过仅目录更新的部署。
+`Check and deploy SubWeave` 验证并发布静态产物；`Update template catalog` 每天约北京时间 07:30 刷新内置目录，通过验证后提交目录文件并触发静态站点发布。GitHub 调度可能延迟。
 
 目录 schema、目标/格式约束和客户端校验在 `src/lib/template-catalog.ts`。更新目录不会修改正在填写的订阅或自动替用户提交转换。
 

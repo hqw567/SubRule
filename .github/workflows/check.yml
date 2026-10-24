@@ -1,4 +1,4 @@
-name: Check SubWeave
+name: Check and deploy SubWeave
 on:
   push:
     paths-ignore: ["**/*.md"]
@@ -9,11 +9,14 @@ permissions:
   contents: read
 concurrency:
   group: check-${{ github.ref }}
-  cancel-in-progress: true
+  # Queue production updates instead of interrupting an active deployment.
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+env:
+  WRANGLER_SEND_METRICS: "false"
 jobs:
   check:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7
         with:
@@ -28,3 +31,43 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm build
       - run: pnpm deploy:check
+      - name: Check production revision
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        id: production
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          latest=$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')
+          if [[ "$latest" == "$GITHUB_SHA" ]]; then
+            echo 'current=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'current=false' >> "$GITHUB_OUTPUT"
+            echo 'A newer main commit exists; this run will not replace its deployment.'
+          fi
+      - name: Check Cloudflare credentials
+        if: steps.production.outputs.current == 'true'
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          if [[ -z "$CLOUDFLARE_API_TOKEN" || -z "$CLOUDFLARE_ACCOUNT_ID" ]]; then
+            echo '::error::Add CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID to this repository Actions secrets.'
+            exit 1
+          fi
+      - name: Publish static assets
+        if: steps.production.outputs.current == 'true'
+        id: deploy
+        uses: cloudflare/wrangler-action@953926a2e2182532811c01a25e53647d93bf07c0 # v4
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          wranglerVersion: "4.152.0"
+          packageManager: pnpm
+          command: deploy
+      - name: Verify the published files
+        if: steps.production.outputs.current == 'true'
+        env:
+          DEPLOYMENT_URL: ${{ steps.deploy.outputs.deployment-url }}
+        run: |
+          node scripts/check-live.mjs "$DEPLOYMENT_URL"
+          printf '### SubWeave\n\n[Open the deployed site](%s)\n\nVerified commit: `%s`\n' "$DEPLOYMENT_URL" "$GITHUB_SHA" >> "$GITHUB_STEP_SUMMARY"
