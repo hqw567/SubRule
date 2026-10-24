@@ -1,10 +1,10 @@
-# SubRule 界面与交互设计
+# SubWeave 界面与交互设计
 
 用户要求：Avoid unnecessary secondary labels and descriptions. Let the layout do the explaining.
 
 界面的核心问题是“用哪些订阅和规则，生成哪个客户端的配置”。保留订阅、客户端、模板、后端、结果五个对象，移除营销标题、装饰标签、重复步骤说明。隐私说明仅出现于历史持久化、短链与配置上传等确实改变数据去向的位置。
 
-采用 framed-sheet：浅灰框架、白色工作区、细边界，无静态卡片阴影。IBM Plex Sans 用于界面，IBM Plex Mono 用于 URL。自托管字体不依赖 Google Fonts。SubRule 标记采用多源汇聚路径；同一结构用于右侧配置预览，随实际输入变化，无虚构数据。
+采用 framed-sheet：浅灰框架、白色工作区、细边界，无静态卡片阴影。IBM Plex Sans 用于界面，IBM Plex Mono 用于 URL。自托管字体不依赖 Google Fonts。SubWeave 标记采用多源汇聚路径；同一结构用于右侧配置预览，随实际输入变化，无虚构数据。
 
 交互组件为官方 shadcn/ui `base-nova`，底层为 `@base-ui/react`。菜单、对话框、选择器和开关由组件库处理焦点及键盘行为。导航与生成按钮保留明确焦点环。局部状态采用短时淡入与位移，尊重 reduced-motion。
 

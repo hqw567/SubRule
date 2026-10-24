@@ -1,4 +1,4 @@
-name: Check SubRule
+name: Check SubWeave
 on:
   push:
     paths-ignore: ["**/*.md"]

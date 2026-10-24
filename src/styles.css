@@ -156,14 +156,14 @@
 .brand {
   display: flex;
   align-items: center;
-  gap: 11px;
+  gap: 9px;
   color: var(--foreground);
   text-decoration: none;
-  font-size: 26px;
+  font-size: 24px;
   font-weight: 600;
   letter-spacing: -0.9px;
   line-height: 1;
-  padding: 0 12px;
+  padding: 0 8px;
 }
 .brand > svg {
   color: var(--signal);

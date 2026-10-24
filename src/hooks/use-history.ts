@@ -12,9 +12,9 @@ export function useHistory() {
   useEffect(() => {
     try {
       const enabled =
-        localStorage.getItem("subrule-history-enabled") === "true";
+        localStorage.getItem("subweave-history-enabled") === "true";
       setRemember(enabled);
-      const saved = JSON.parse(localStorage.getItem("subrule-history") || "[]");
+      const saved = JSON.parse(localStorage.getItem("subweave-history") || "[]");
       if (enabled && Array.isArray(saved))
         setEntries(
           saved
@@ -36,8 +36,8 @@ export function useHistory() {
     setEntries(next);
     try {
       if (enabled)
-        localStorage.setItem("subrule-history", JSON.stringify(next));
-      else localStorage.removeItem("subrule-history");
+        localStorage.setItem("subweave-history", JSON.stringify(next));
+      else localStorage.removeItem("subweave-history");
     } catch {
       /* In-memory history remains available. */
     }
@@ -45,7 +45,7 @@ export function useHistory() {
   function setPersistence(enabled: boolean) {
     setRemember(enabled);
     try {
-      localStorage.setItem("subrule-history-enabled", String(enabled));
+      localStorage.setItem("subweave-history-enabled", String(enabled));
     } catch {
       /* In-memory fallback. */
     }

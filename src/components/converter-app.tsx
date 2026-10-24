@@ -39,7 +39,7 @@ export function ConverterApp() {
   const [dark, setDarkState] = useState(false);
   useEffect(() => {
     try {
-      const saved = localStorage.getItem("subrule-theme");
+      const saved = localStorage.getItem("subweave-theme");
       setDarkState(
         saved
           ? saved === "dark"
@@ -53,7 +53,7 @@ export function ConverterApp() {
   function setDark(value: boolean) {
     setDarkState(value);
     try {
-      localStorage.setItem("subrule-theme", value ? "dark" : "light");
+      localStorage.setItem("subweave-theme", value ? "dark" : "light");
     } catch {}
   }
   function go(next: Page) {
@@ -97,13 +97,13 @@ export function ConverterApp() {
           >
             <RouteMark />
             <span>
-              SubRule<span className="brand-period">.</span>
+              SubWeave<span className="brand-period">.</span>
             </span>
           </a>
           {nav}
           <div className="sidebar-bottom">
             <a
-              href="https://github.com/hqw567/SubRule"
+              href="https://github.com/hqw567/SubWeave"
               target="_blank"
               rel="noreferrer"
             >
@@ -133,13 +133,13 @@ export function ConverterApp() {
                 <Menu />
               </Button>
               <RouteMark />
-              <span>SubRule</span>
+              <span>SubWeave</span>
             </div>
             <span className="topbar-context">
               {navigation.find((n) => n.id === page)?.label}
             </span>
             <a
-              href="https://github.com/hqw567/personal-clash-rules"
+              href="https://github.com/hqw567/SubWeave-Rules"
               target="_blank"
               rel="noreferrer"
               className="rules-source"
@@ -190,9 +190,9 @@ export function ConverterApp() {
               )}
             </div>
             <footer className="workspace-footer">
-              <span>SubRule</span>
+              <span>SubWeave</span>
               <a
-                href="https://github.com/hqw567/personal-clash-rules/blob/main/NOTICE.md"
+                href="https://github.com/hqw567/SubWeave-Rules/blob/main/NOTICE.md"
                 target="_blank"
                 rel="noreferrer"
               >
@@ -207,7 +207,7 @@ export function ConverterApp() {
             <DialogTitle>
               <span className="brand">
                 <RouteMark />
-                SubRule
+                SubWeave
               </span>
             </DialogTitle>
             {nav}

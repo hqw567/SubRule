@@ -1,4 +1,4 @@
-# SubRule
+# SubWeave
 
 订阅与规则工作台。React 19、TypeScript、TanStack Start，交互组件采用官方 shadcn/ui **Base UI** 版本。
 
@@ -19,7 +19,7 @@ pnpm start
 
 ## 规则与客户端
 
-默认使用公开、可定制的 [SubRule 扩展规则](https://github.com/hqw567/personal-clash-rules) 标准版，包含个人直连例外和秋风纯广告过滤。模板由规则仓库统一生成；本项目不重复维护规则合并逻辑。
+默认使用公开、可定制的 [SubWeave 扩展规则](https://github.com/hqw567/SubWeave-Rules) 标准版，包含自定义直连规则和秋风纯广告过滤。模板由规则仓库统一生成；本项目不重复维护规则合并逻辑。
 
 - 共享 Clash INI 对应 Mihomo、OpenClash、Clash Verge Rev、FlClash、Nikki。
 - Stash 使用 `target=stash` 和对应 Stash INI，保留同系列模板选择。
@@ -37,10 +37,10 @@ pnpm start
 # 更新内置目录（需要规则仓库已发布 catalog.json）
 pnpm catalog:update
 # 开发时使用本地生成目录
-pnpm catalog:update --from ../personal-clash-rules/dist/catalog.json
+pnpm catalog:update --from ../SubWeave-Rules/dist/catalog.json
 ```
 
-`Check SubRule` 验证测试、类型和生产构建；`Update template catalog` 每天约北京时间 07:30 刷新内置目录，通过验证后仅提交目录文件。GitHub 调度可能延迟。网页托管若监听每次提交，可按路径跳过仅目录更新的部署。
+`Check SubWeave` 验证测试、类型和生产构建；`Update template catalog` 每天约北京时间 07:30 刷新内置目录，通过验证后仅提交目录文件。GitHub 调度可能延迟。网页托管若监听每次提交，可按路径跳过仅目录更新的部署。
 
 目录 schema、目标/格式约束和客户端校验在 `src/lib/template-catalog.ts`。更新目录不会修改正在填写的订阅或自动替用户提交转换。
 
@@ -67,6 +67,6 @@ pnpm catalog:update --from ../personal-clash-rules/dist/catalog.json
 
 ## 五种过滤方案
 
-SubRule 扩展提供仅自定义扩展、纯广告（默认）、完整防护、广告＋隐私、广告＋不受欢迎五种方案。后者的不受欢迎规则涉及强制更新、P2P/PCDN、推送、云控等连接，可能影响相应功能。方案在模板详情中选择；切换客户端和模板系列时保留已应用的方案与故障转移选择。
+SubWeave 扩展提供仅自定义扩展、纯广告（默认）、完整防护、广告＋隐私、广告＋不受欢迎五种方案。后者的不受欢迎规则涉及强制更新、P2P/PCDN、推送、云控等连接，可能影响相应功能。方案在模板详情中选择；切换客户端和模板系列时保留已应用的方案与故障转移选择。
 
 规则目录使用 schemaVersion 2，包含 180 项产物。新地址为 `dist/<profile>/<platform>/<variant>`；旧路径与旧配置不提供兼容入口。

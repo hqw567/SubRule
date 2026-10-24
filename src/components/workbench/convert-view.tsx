@@ -355,7 +355,7 @@ export function ConvertView({
         </div>
         <a
           className="source-credit"
-          href="https://github.com/hqw567/personal-clash-rules"
+          href="https://github.com/hqw567/SubWeave-Rules"
           target="_blank"
           rel="noreferrer"
         >

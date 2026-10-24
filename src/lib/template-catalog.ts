@@ -36,7 +36,7 @@ export type TemplateCatalog = {
   templates: TemplateEntry[];
 };
 export const CATALOG_URL =
-  "https://raw.githubusercontent.com/hqw567/personal-clash-rules/main/dist/catalog.json";
+  "https://raw.githubusercontent.com/hqw567/SubWeave-Rules/main/dist/catalog.json";
 const record = (v: unknown): v is Record<string, unknown> =>
   !!v && typeof v === "object" && !Array.isArray(v);
 const text = (v: unknown): v is string =>

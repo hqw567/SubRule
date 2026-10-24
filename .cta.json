@@ -1,5 +1,5 @@
 {
-  "projectName": "sub-rule",
+  "projectName": "subweave",
   "mode": "file-router",
   "typescript": true,
   "packageManager": "pnpm",

@@ -158,7 +158,7 @@ export function backendProbeUrl(
   const base = normalizeBackend(httpUrl(backend, "后端地址").href);
   const params = new URLSearchParams({
     target: profile.target,
-    url: "ss://YWVzLTEyOC1nY206c3VicnVsZS10ZXN0@198.51.100.1:443#SubRule-Test",
+    url: "ss://YWVzLTEyOC1nY206c3Vid2VhdmUtdGVzdA==@198.51.100.1:443#SubWeave-Test",
     expand: "false",
     list: "false",
   });

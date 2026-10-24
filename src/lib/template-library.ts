@@ -58,7 +58,7 @@ export function templateFamilies(
     add(`${prefix}/${stem}`, name, source, summary, entry);
   };
   for (const entry of catalog.templates)
-    addFamily("SubRule 扩展", "subrule", {
+    addFamily("SubWeave 扩展", "subweave", {
       ...entry,
       profileName: catalog.profiles.find((p) => p.id === entry.profile)?.name,
       profileDescription: catalog.profiles.find((p) => p.id === entry.profile)
@@ -92,13 +92,13 @@ export function templateFamilies(
     "selfhosted-manual",
   ];
   for (const family of families.values())
-    if (family.id.startsWith("subrule/")) {
+    if (family.id.startsWith("subweave/")) {
       family.defaultProfile = catalog.defaultProfile;
       family.profileOrder = catalog.profiles.map((profile) => profile.id);
     }
   return [...families.values()].sort((a, b) => {
     const priority = (f: TemplateFamily) =>
-      f.id.startsWith("subrule/")
+      f.id.startsWith("subweave/")
         ? 0
         : f.id.startsWith("aethersailor/")
           ? 1
@@ -119,7 +119,7 @@ export function templateSource(
     f.entries.some((e) => e.url === url),
   );
   return (
-    family?.source || (findTemplate(url, catalog) ? "SubRule 扩展" : "自定义")
+    family?.source || (findTemplate(url, catalog) ? "SubWeave 扩展" : "自定义")
   );
 }
 export function presetLabel(entry: LibraryEntry) {

@@ -13,7 +13,7 @@ export const Route = createRootRoute({
         content: "width=device-width, initial-scale=1",
       },
       {
-        title: "SubRule · 订阅与规则工作台",
+        title: "SubWeave · 订阅与规则工作台",
       },
       {
         name: "description",

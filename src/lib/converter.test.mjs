@@ -606,7 +606,7 @@ test("backend requirements reject known MRS failures but allow GEOSITE-only and 
 });
 test("unified template families keep source, runtime purpose and variants together without retired entries", () => {
   const families = templateFamilies();
-  const extension = families.find((f) => f.id === "subrule/standard");
+  const extension = families.find((f) => f.id === "subweave/standard");
   assert.deepEqual(
     new Set(extension.entries.map((e) => e.target)),
     new Set(["clash", "stash", "mihomo", "openclash"]),
@@ -707,7 +707,7 @@ test("filter profile is preserved when switching clients and all five schemes ar
     );
     assert.equal(parseSubscription(input.href).config, stash.config);
   }
-  const family = templateFamilies().find((f) => f.id === "subrule/standard");
+  const family = templateFamilies().find((f) => f.id === "subweave/standard");
   assert.deepEqual(
     family.profileOrder,
     bundledCatalog.profiles.map((p) => p.id),
@@ -723,7 +723,7 @@ test("filter profile is preserved when switching clients and all five schemes ar
 
 test("retired publisher paths are rejected rather than treated as custom compatibility templates", () => {
   const retired =
-    "https://raw.githubusercontent.com/hqw567/personal-clash-rules/main/dist/subconverter/standard.ini";
+    "https://raw.githubusercontent.com/hqw567/SubWeave-Rules/main/dist/subconverter/standard.ini";
   assert.throws(
     () => buildSubscription(form({ config: retired })),
     /INI 转换模板/,
