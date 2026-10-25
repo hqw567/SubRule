@@ -162,7 +162,7 @@ export function parseCatalog(value: unknown): TemplateCatalog {
           item.capabilities.includes("geosite"))) ||
       (!conversion && Object.keys(item.requiredFlags).length)
     )
-      throw new Error("模板用途与客户端不匹配");
+      throw new Error("模板用途与输出格式不匹配");
     ids.add(item.id);
     paths.add(item.path);
   }

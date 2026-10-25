@@ -1,12 +1,10 @@
 import { DEFAULT_SHORT_API, requestShortLink } from "#/lib/short-link";
-import { requireClient } from "#/lib/clients";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
-  applyClientPreset,
+  applyFormatPreset,
   applyRulePreset,
   buildSubscription,
-  clients,
   defaultForm,
   httpUrl,
   parseSubscription,
@@ -77,9 +75,12 @@ export function useWorkbench(catalog: TemplateCatalog) {
   const backendChoices = backendOptions.map((backend) => {
     const support = backendCompatibility(
       backend.value,
-      profile?.target || form.client,
+      profile?.target || form.format,
       profile?.capabilities,
     );
+    const missing = support.missing.map((capability) =>
+      capability === "stash" ? "Stash" : capability.toUpperCase(),
+    ).join(" / ");
     const verified =
       profile && reports[probeKey(backend.value, profile)]?.status === "passed";
     return {
@@ -87,11 +88,11 @@ export function useWorkbench(catalog: TemplateCatalog) {
       label: backend.label,
       group:
         !support.supported && !verified
-          ? `${backend.group} · 不适配此模板`
+          ? `${backend.group} · 缺少 ${missing}`
           : backend.group,
       disabled: !support.supported && !verified,
       reason: support.missing.length
-        ? `缺少 ${support.missing.join(" / ")} 支持`
+        ? `缺少 ${missing} 支持`
         : undefined,
     };
   });
@@ -105,8 +106,8 @@ export function useWorkbench(catalog: TemplateCatalog) {
   function chooseRule(config: string) {
     setForm((f) => applyRulePreset(f, config, catalog));
   }
-  function chooseClient(client: string) {
-    setForm((f) => applyClientPreset(f, client, catalog));
+  function chooseFormat(format: string) {
+    setForm((f) => applyFormatPreset(f, format, catalog));
   }
   function generate() {
     try {
@@ -119,9 +120,6 @@ export function useWorkbench(catalog: TemplateCatalog) {
       setError("");
       history.add({
         url,
-        client:
-          clients.find((c) => c.value === form.client)?.label || form.client,
-        clientId: form.client,
         count: sourceCount,
         time: Date.now(),
       });
@@ -210,10 +208,6 @@ export function useWorkbench(catalog: TemplateCatalog) {
   function restore(entry: HistoryEntry) {
     try {
       const next = parseSubscription(entry.url, catalog);
-      if (entry.clientId) {
-        requireClient(entry.clientId);
-        next.client = entry.clientId;
-      }
       setForm(next);
       return true;
     } catch (e) {
@@ -241,7 +235,7 @@ export function useWorkbench(catalog: TemplateCatalog) {
       >,
     ) => setForm((f) => ({ ...f, ...options })),
     chooseRule,
-    chooseClient,
+    chooseFormat,
     sourceCount,
     compatibility,
     backendChoices,

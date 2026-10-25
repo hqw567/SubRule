@@ -135,14 +135,14 @@ function TemplateDetails({
         {targets.length > 1 ? (
           <ChoiceSelect
             id={`${prefix}-target`}
-            label="客户端"
+            label={mode === "runtime-template" ? "运行环境" : "输出格式"}
             value={platform}
             onChange={setTarget}
             choices={targets.map((t) => ({ value: t, label: targetLabels[t] }))}
           />
         ) : (
           <div className="template-fact">
-            <span>适用客户端</span>
+            <span>{mode === "runtime-template" ? "运行环境" : "输出格式"}</span>
             <strong>{targetLabels[platform]}</strong>
           </div>
         )}

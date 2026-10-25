@@ -23,7 +23,7 @@ export type TemplateFamily = {
   profileOrder?: string[];
 };
 export const targetLabels: Record<string, string> = {
-  clash: "Mihomo / OpenClash",
+  clash: "Mihomo / Clash",
   stash: "Stash",
   mihomo: "Mihomo",
   openclash: "OpenClash",

@@ -17,7 +17,7 @@ import { Button } from "#/components/ui/button";
 import { Input } from "#/components/ui/input";
 import { Textarea } from "#/components/ui/textarea";
 import { ChoiceSelect, Field, RouteMark } from "./controls";
-import { clients, getClientTarget } from "#/lib/converter";
+import { outputFormats } from "#/lib/formats";
 import { backendOptions, communityRules, shortServices } from "#/lib/catalog";
 import type { TemplateCatalog } from "#/lib/template-catalog";
 import type { Workbench } from "#/hooks/use-workbench";
@@ -35,7 +35,7 @@ export function ConvertView({
   const { form, update, compatibility } = work;
   const [customBackend, setCustomBackend] = useState(false);
   const [shortOpen, setShortOpen] = useState(false);
-  const target = getClientTarget(form.client);
+  const target = form.format;
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const source = form.config ? templateSource(form.config, catalog) : "";
   const templateName = (
@@ -47,8 +47,8 @@ export function ConvertView({
     (p) => p.id === compatibility.template?.profile,
   );
   const overrides = advancedCount(form, compatibility.template?.requiredFlags);
-  const clientLabel =
-    clients.find((c) => c.value === form.client)?.label || form.client;
+  const formatLabel =
+    outputFormats.find((c) => c.value === form.format)?.label || form.format;
   const result = work.shortResult || work.result;
   return (
     <div className="conversion-layout">
@@ -94,11 +94,11 @@ export function ConvertView({
         <div className="configuration-fields">
           <div className="two-fields">
             <ChoiceSelect
-              id="client"
-              label="客户端"
-              value={form.client}
-              onChange={work.chooseClient}
-              choices={clients.map((c) => ({
+              id="output-format"
+              label="输出格式"
+              value={form.format}
+              onChange={work.chooseFormat}
+              choices={outputFormats.map((c) => ({
                 value: c.value,
                 label: c.label,
                 group: c.group,
@@ -265,7 +265,7 @@ export function ConvertView({
               <span className="path-pin final" />
               <div>
                 <span className="recipe-key">输出</span>
-                <strong>{clientLabel}</strong>
+                <strong>{formatLabel}</strong>
               </div>
               <span className="format-tag">
                 {["clash", "stash"].includes(target)

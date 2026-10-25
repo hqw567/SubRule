@@ -48,16 +48,16 @@ pnpm deploy       # 配置本地 Cloudflare 身份后，构建并发布静态资
 
 [Cloudflare GitHub Actions 文档](https://developers.cloudflare.com/workers/ci-cd/external-cicd/github-actions/) · [静态资源文档](https://developers.cloudflare.com/workers/static-assets/) · [TanStack Start 静态预渲染](https://tanstack.com/start/latest/docs/framework/react/guide/static-prerendering)
 
-## 规则与客户端
+## 输出格式与规则
 
 默认使用公开、可定制的 [SubWeave 扩展规则](https://github.com/hqw567/SubWeave-Rules) 标准版，包含自定义直连规则和秋风纯广告过滤。模板由规则仓库统一生成；本项目不重复维护规则合并逻辑。
 
-- 共享 Clash INI 对应 Mihomo、OpenClash、Clash Verge Rev、FlClash、Nikki。
-- Stash 使用 `target=stash` 和对应 Stash INI，保留同系列模板选择。
+- 输出格式按转换目标组织。Mihomo、OpenClash、Clash Verge Rev、FlClash、Nikki 共用一个 **Mihomo / Clash** 选项，不再重复列出应用品牌。
+- sing-box、Stash、Surge、Quantumult X、Loon、Surfboard 保留独立格式。Stash 使用 `target=stash` 和对应 Stash INI。节点分享订阅与完整配置分组展示。
 - 运行配置 YAML 单独展示，需在本地填入订阅；不能作为转换器 `config=`。
-- 统一模板库按来源和用途筛选，系列详情内选择客户端与切换方式。保留 Aethersailor、ACL4SSR、ClashRule 与自定义 URL。
+- 统一模板库按来源和用途筛选，系列详情内选择输出格式与切换方式；运行配置按 Mihomo / OpenClash 环境选择。保留 Aethersailor、ACL4SSR、ClashRule 与自定义 URL。
 - 高级选项为“默认 / 开启 / 关闭”。默认省略参数，保留订阅或后端设置。
-- 导入链接保留未知参数及重复的扩展参数；更换目标时提示确认其适用性。
+- 导入链接保留未知参数及重复的扩展参数；更换格式时提示确认其适用性。
 - 后端探测按当前目标、模板和目录哈希记录，只使用虚构 TEST-NET 节点。结构检查通过不等于设备连通性通过。
 
 ## 模板目录
@@ -91,17 +91,18 @@ pnpm catalog:update --from ../SubWeave-Rules/dist/catalog.json
 
 - `src/components/workbench/`：转换、模板库、历史、设置与导入界面。
 - `src/hooks/`：表单工作流、目录加载、历史状态。
-- `src/lib/converter.ts`：URL 生成、解析和客户端匹配。
+- `src/lib/formats.ts`：唯一的输出格式目录，每个 target / 版本只出现一次。
+- `src/lib/converter.ts`：URL 生成、解析和输出格式匹配。
 - `src/lib/backend-probe.ts`：按模板能力验证转换输出。
 - `src/data/template-catalog.json`：规则仓库生成的目录快照。
 - `src/components/ui/`：官方 shadcn Base UI 组件。
 
 社区规则和接口参考 [sub-web-modify](https://github.com/youshandefeiyang/sub-web-modify)，其 MIT 声明保留于 `THIRD_PARTY_LICENSE`。目录数据的来源与许可见 [NOTICE.md](NOTICE.md)。历史后端快照标注的 2026-09-12 不是当前可用性承诺。
 
-客户端、模板及后端的维护范围与检查来源见 [docs/maintained-presets.md](docs/maintained-presets.md)。高级选项使用分组草稿弹窗，点击应用后生效。
+输出格式、模板及后端的维护范围与检查来源见 [docs/maintained-presets.md](docs/maintained-presets.md)。高级选项使用分组草稿弹窗，点击应用后生效。
 
 ## 五种过滤方案
 
-SubWeave 扩展提供仅自定义扩展、纯广告（默认）、完整防护、广告＋隐私、广告＋不受欢迎五种方案。后者的不受欢迎规则涉及强制更新、P2P/PCDN、推送、云控等连接，可能影响相应功能。方案在模板详情中选择；切换客户端和模板系列时保留已应用的方案与故障转移选择。
+SubWeave 扩展提供仅自定义扩展、纯广告（默认）、完整防护、广告＋隐私、广告＋不受欢迎五种方案。后者的不受欢迎规则涉及强制更新、P2P/PCDN、推送、云控等连接，可能影响相应功能。方案在模板详情中选择；切换输出格式和模板系列时保留已应用的方案与故障转移选择。
 
 规则目录使用 schemaVersion 2，包含 180 项产物。新地址为 `dist/<profile>/<platform>/<variant>`；旧路径与旧配置不提供兼容入口。

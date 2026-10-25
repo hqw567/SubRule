@@ -104,7 +104,7 @@ export function AdvancedDialog({
               </div>
               <div className="tri-state-list">
                 {p.flags
-                  .filter((key) => flagApplies(key, work.form.client))
+                  .filter((key) => flagApplies(key, work.form.format))
                   .map((key) => {
                     const option = flagOptions.find((f) => f.key === key)!;
                     const locked = required[key as keyof typeof required];
@@ -199,7 +199,7 @@ export function AdvancedDialog({
           <Button
             variant="ghost"
             onClick={() => {
-              setDraft(defaultAdvanced(required, work.form.client));
+              setDraft(defaultAdvanced(required, work.form.format));
               setError("");
             }}
           >

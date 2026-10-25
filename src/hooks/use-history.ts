@@ -1,8 +1,7 @@
 import { useEffect, useState } from "react";
+import { formatForUrl } from "#/lib/formats";
 export type HistoryEntry = {
   url: string;
-  client: string;
-  clientId?: string;
   count: number;
   time: number;
 };
@@ -23,10 +22,11 @@ export function useHistory() {
                 e &&
                 typeof e.url === "string" &&
                 typeof e.time === "number" &&
-                typeof e.client === "string" &&
+                !!formatForUrl(e.url) &&
                 typeof e.count === "number",
             )
-            .slice(0, 20),
+            .slice(0, 20)
+            .map(({ url, count, time }) => ({ url, count, time })),
         );
     } catch {
       /* Storage is optional. */

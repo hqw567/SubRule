@@ -20,7 +20,7 @@ export const aethersailorRules = [
   url: templateBase + file,
 }));
 
-// Verified with public templates and synthetic nodes on 2026-10-24.
+// Verified with public templates and synthetic nodes; each entry records its check date.
 export type BackendPreset = {
   value: string;
   label: string;
@@ -48,15 +48,29 @@ export const backendOptions: BackendPreset[] = [
     capabilities: { mrs: true, geosite: true, stash: true },
   },
   {
+    value: "https://edge-api-v1.ffqla.com",
+    label: "FFQ 官方",
+    group: "通用后端",
+    version: "2026-10-25 subconverter v0.9.9-948f049；GEOSITE 通过，MRS 缺少 format，Stash 不支持",
+    capabilities: { mrs: false, geosite: true, stash: false },
+  },
+  {
+    value: "https://api.ytools.cc",
+    label: "FFQ 官方备用",
+    group: "通用后端",
+    version: "2026-10-25 subconverter v0.9.9-948f049；GEOSITE 通过，MRS 缺少 format，Stash 不支持",
+    capabilities: { mrs: false, geosite: true, stash: false },
+  },
+  {
     value: "https://api.v1.mk",
-    label: "肥羊 · 主站",
+    label: "v1.mk",
     group: "通用后端",
     version: "2026-10-24 MRS / Stash 检查未通过",
     capabilities: { mrs: false, geosite: true, stash: false },
   },
   {
     value: "https://url.v1.mk",
-    label: "肥羊 · 备用",
+    label: "url.v1.mk",
     group: "通用后端",
     version: "2026-10-24 MRS / Stash 检查未通过",
     capabilities: { mrs: false, geosite: true, stash: false },

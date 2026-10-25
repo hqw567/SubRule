@@ -2,6 +2,7 @@ import { ArrowUpRight, Copy, History, Trash2 } from "lucide-react";
 import { Button } from "#/components/ui/button";
 import { copyText } from "#/hooks/use-workbench";
 import type { Workbench } from "#/hooks/use-workbench";
+import { formatForUrl } from "#/lib/formats";
 import type { HistoryEntry } from "#/hooks/use-history";
 export function HistoryView({
   history,
@@ -27,7 +28,7 @@ export function HistoryView({
           {history.entries.map((entry) => (
             <div className="history-row" key={entry.time}>
               <div>
-                <strong>{entry.client}</strong>
+                <strong>{formatForUrl(entry.url)?.label || "未知格式"}</strong>
                 <span>
                   {entry.count} 个来源 ·{" "}
                   {new Date(entry.time).toLocaleString("zh-CN", {

@@ -1,7 +1,7 @@
 import { readTextLimited } from "./http-body.ts";
 import { parseDocument } from "yaml";
 import { normalizeBackend } from "./catalog.ts";
-import { defaultForm, getClientTarget, httpUrl } from "./converter.ts";
+import { defaultForm, httpUrl } from "./converter.ts";
 import type { FormState } from "./converter.ts";
 import { bundledCatalog, findTemplate } from "./template-catalog.ts";
 import type { TemplateCatalog } from "./template-catalog.ts";
@@ -27,7 +27,7 @@ export function probeProfile(
   form: FormState,
   catalog: TemplateCatalog = bundledCatalog,
 ): ProbeProfile | undefined {
-  const target = getClientTarget(form.client);
+  const target = form.format;
   if (target !== "clash" && target !== "stash") return;
   const template = findTemplate(form.config, catalog);
   return {

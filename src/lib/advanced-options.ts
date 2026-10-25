@@ -32,7 +32,7 @@ export function advancedOptions(form: FormState): AdvancedOptions {
 }
 export function defaultAdvanced(
   required: Partial<Record<Flag, boolean>> = {},
-  client = "clash",
+  format = "clash",
 ): AdvancedOptions {
   return {
     include: "",
@@ -42,7 +42,7 @@ export function defaultAdvanced(
     interval: "",
     dev_id: "",
     diyua: "",
-    flags: recommendedFlags(client, required),
+    flags: recommendedFlags(format, required),
     extraParams: [],
     extraParamsTarget: null,
   };
@@ -56,8 +56,8 @@ export function advancedCount(
     form.extraParams.length +
     flagOptions.filter(
       ({ key }) =>
-        flagApplies(key, form.client) &&
-        form.flags[key] !== recommendedFlags(form.client, required)[key],
+        flagApplies(key, form.format) &&
+        form.flags[key] !== recommendedFlags(form.format, required)[key],
     ).length
   );
 }

@@ -13,13 +13,7 @@ import {
 } from "./template-catalog.ts";
 import type { TemplateCatalog } from "./template-catalog.ts";
 
-import { isModernClient, getClientTarget, requireClient } from "./clients.ts";
-export {
-  clients,
-  modernClientIds,
-  isModernClient,
-  getClientTarget,
-} from "./clients.ts";
+import { isMihomoFormat, requireFormat } from "./formats.ts";
 
 export const flagOptions = [
   { key: "emoji", label: "国旗 Emoji", hint: "为节点名称添加地区标识" },
@@ -33,17 +27,17 @@ export const flagOptions = [
   { key: "tls13", label: "TLS 1.3", hint: "使用 TLS 1.3" },
   { key: "expand", label: "展开规则", hint: "输出完整规则内容" },
   { key: "scv", label: "跳过证书验证", hint: "仅在信任节点时启用" },
-  { key: "fdn", label: "过滤不支持节点", hint: "移除客户端不支持的协议" },
-  { key: "new_name", label: "Clash 新字段", hint: "使用新版配置字段" },
-  { key: "clash.doh", label: "Clash DoH", hint: "通过 HTTPS 查询 DNS" },
+  { key: "fdn", label: "过滤不支持节点", hint: "移除目标格式不支持的协议" },
+  { key: "new_name", label: "Mihomo 字段", hint: "使用新版配置字段" },
+  { key: "clash.doh", label: "Mihomo DoH", hint: "通过 HTTPS 查询 DNS" },
   { key: "surge.doh", label: "Surge DoH", hint: "通过 HTTPS 查询 DNS" },
-  { key: "singbox.ipv6", label: "Sing-Box IPv6", hint: "启用 IPv6 支持" },
+  { key: "singbox.ipv6", label: "sing-box IPv6", hint: "启用 IPv6 支持" },
 ] as const;
 export type Flag = (typeof flagOptions)[number]["key"];
 export type FlagValue = boolean | null;
 export type FormState = {
   source: string;
-  client: string;
+  format: string;
   backend: string;
   config: string;
   include: string;
@@ -59,7 +53,7 @@ export type FormState = {
 };
 export const defaultForm: FormState = {
   source: "",
-  client: "clash",
+  format: "clash",
   backend: backendOptions[0].value,
   config: defaultTemplate.url,
   include: "",
@@ -106,26 +100,26 @@ export function emptyFlags(): Record<Flag, FlagValue> {
   ) as Record<Flag, FlagValue>;
 }
 export function recommendedFlags(
-  client: string,
+  format: string,
   required: Partial<Record<Flag, boolean>> = {},
 ): Record<Flag, FlagValue> {
   const flags = emptyFlags();
   flags.insert = false;
-  if (isModernClient(client) || client === "stash") {
+  if (isMihomoFormat(format) || format === "stash") {
     flags.list = false;
     flags.expand = false;
-    if (isModernClient(client)) flags.new_name = true;
+    if (isMihomoFormat(format)) flags.new_name = true;
   }
   // Explicit UDP/TFO/TLS/certificate/rename overrides change the converter's
   // native-provider routing. Inherit these unless the user requests otherwise.
   return { ...flags, ...required };
 }
-export function flagApplies(key: string, client: string) {
-  const target = getClientTarget(client);
+export function flagApplies(key: string, format: string) {
+  const target = format;
   return (
     !((key.startsWith("clash.") || key === "new_name") && target !== "clash") &&
-    !(key.startsWith("surge.") && !client.startsWith("surge")) &&
-    !(key.startsWith("singbox.") && client !== "singbox")
+    !(key.startsWith("surge.") && !format.startsWith("surge")) &&
+    !(key.startsWith("singbox.") && format !== "singbox")
   );
 }
 export function ruleCompatibility(
@@ -154,11 +148,11 @@ export function ruleCompatibility(
   if (template?.kind === "conversion-template") {
     if (
       template.target === "clash"
-        ? !isModernClient(form.client)
-        : form.client !== "stash"
+        ? !isMihomoFormat(form.format)
+        : form.format !== "stash"
     )
       errors.push(
-        `此模板需要${template.target === "stash" ? " Stash" : " Mihomo 等现代客户端"}，请更换客户端或模板。`,
+        `此模板需要${template.target === "stash" ? " Stash 格式" : " Mihomo 格式"}，请更换输出格式或模板。`,
       );
     for (const [key, expected] of Object.entries(template.requiredFlags)) {
       const value = form.flags[key as Flag];
@@ -183,10 +177,10 @@ export function ruleCompatibility(
   if (
     form.extraParams.length &&
     form.extraParamsTarget &&
-    form.extraParamsTarget !== getClientTarget(form.client)
+    form.extraParamsTarget !== form.format
   )
     warnings.push(
-      "已保留原链接的扩展参数；更换客户端后请确认其适用性，或清除扩展参数。",
+      "已保留原链接的扩展参数；更换格式后请确认其适用性，或清除扩展参数。",
     );
   return { resource, errors, warnings, template };
 }
@@ -200,11 +194,11 @@ export function applyRulePreset(
   return {
     ...form,
     config,
-    client:
+    format:
       template.target === "stash"
         ? "stash"
-        : isModernClient(form.client)
-          ? form.client
+        : isMihomoFormat(form.format)
+          ? form.format
           : "clash",
     backend: !backendCompatibility(
       form.backend,
@@ -216,13 +210,13 @@ export function applyRulePreset(
     flags: { ...form.flags, ...template.requiredFlags },
   };
 }
-export function applyClientPreset(
+export function applyFormatPreset(
   form: FormState,
-  client: string,
+  format: string,
   catalog: TemplateCatalog = bundledCatalog,
 ): FormState {
-  requireClient(client);
-  const managed = isModernClient(client) || client === "stash";
+  requireFormat(format);
+  const managed = isMihomoFormat(format) || format === "stash";
   const current = findTemplate(form.config, catalog);
   const counterpart =
     current &&
@@ -231,10 +225,10 @@ export function applyClientPreset(
         t.kind === "conversion-template" &&
         t.variant === current.variant &&
         t.profile === (current.profile || "custom-only") &&
-        t.target === getClientTarget(client),
+        t.target === format,
     );
   let config = form.config;
-  if (managed && current?.target === getClientTarget(client))
+  if (managed && current?.target === format)
     config = form.config;
   else if (managed && counterpart) config = counterpart.url;
   else if (managed && !form.config)
@@ -242,13 +236,13 @@ export function applyClientPreset(
       catalog.templates.find(
         (t) =>
           t.id ===
-          `${catalog.defaultProfile}/${getClientTarget(client)}/standard`,
+          `${catalog.defaultProfile}/${format}/standard`,
       )?.url || "";
   else if (!managed && current) config = defaultCommunityTemplate.url;
   const selected = findTemplate(config, catalog);
   return {
     ...form,
-    client,
+    format,
     config,
     backend:
       selected &&
@@ -272,7 +266,7 @@ export function buildSubscription(
   catalog: TemplateCatalog = bundledCatalog,
   options: { backendVerified?: boolean; checkBackend?: boolean } = {},
 ) {
-  requireClient(form.client);
+  const definition = requireFormat(form.format);
   const compatibility = ruleCompatibility(form, catalog, {
     backendVerified: options.backendVerified || options.checkBackend === false,
   });
@@ -293,8 +287,8 @@ export function buildSubscription(
   backend.search = "";
   backend.hash = "";
   backend.pathname = backend.pathname.replace(/\/(sub\/?)?$/, "") + "/sub";
-  const target = getClientTarget(form.client);
-  const params = new URLSearchParams(`target=${target}`);
+  const params = new URLSearchParams({ target: definition.value });
+  if (definition.version) params.set("ver", definition.version);
   params.set("url", [...new Set(sources)].join("|"));
   if (form.config.trim())
     params.set("config", httpUrl(form.config, "远程配置").href);
@@ -308,7 +302,7 @@ export function buildSubscription(
   }
   for (const { key } of flagOptions) {
     const value = form.flags[key];
-    if (value === null || !flagApplies(key, form.client)) continue;
+    if (value === null || !flagApplies(key, form.format)) continue;
     params.set(
       key,
       key === "singbox.ipv6" ? (value ? "1" : "0") : String(value),
@@ -321,9 +315,9 @@ export function buildSubscription(
     "interval",
     ...textKeys,
     ...flagOptions
-      .filter((f) => flagApplies(f.key, form.client))
+      .filter((f) => flagApplies(f.key, form.format))
       .map((f) => f.key),
-    ...(form.client.startsWith("surge") ? ["ver"] : []),
+    ...(definition.version ? ["ver"] : []),
   ]);
   for (const [key, value] of form.extraParams) {
     if (reserved.has(key))
@@ -341,17 +335,16 @@ export function parseSubscription(
     p = url.searchParams;
   if (!p.get("target") || !p.get("url"))
     throw new Error("链接中缺少 target 或 url 参数，请输入已转换的订阅链接");
-  const client =
-    p.get("target") === "surge"
-      ? `surge&ver=${p.get("ver") || "4"}`
-      : p.get("target")!;
-  requireClient(client);
+  const format = p.get("target")!;
+  const definition = requireFormat(format);
+  if (definition.version && p.has("ver") && p.get("ver") !== definition.version)
+    throw new Error("暂不支持此 Surge 格式版本");
   const form: FormState = {
     ...defaultForm,
     flags: emptyFlags(),
     extraParams: [],
     extraParamsTarget: null,
-    client,
+    format,
     source: p.get("url")!.split("|").join("\n"),
     backend: url.origin + url.pathname.replace(/\/sub\/?$/, ""),
     config: p.get("config") || "",
@@ -365,10 +358,10 @@ export function parseSubscription(
     "config",
     "interval",
     ...textKeys,
-    ...(client.startsWith("surge") ? ["ver"] : []),
+    ...(definition.version ? ["ver"] : []),
   ]);
   for (const { key } of flagOptions) {
-    if (!flagApplies(key, client)) continue;
+    if (!flagApplies(key, format)) continue;
     known.add(key);
     if (p.has(key)) {
       const raw = p.get(key)!.toLowerCase();
@@ -381,7 +374,7 @@ export function parseSubscription(
     if (p.getAll(key).length > 1)
       throw new Error(`参数 ${key} 重复，请先确认链接`);
   form.extraParams = [...p.entries()].filter(([key]) => !known.has(key));
-  if (form.extraParams.length) form.extraParamsTarget = getClientTarget(client);
+  if (form.extraParams.length) form.extraParamsTarget = format;
   buildSubscription(form, catalog, { checkBackend: false });
   return form;
 }

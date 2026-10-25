@@ -1,3 +1,4 @@
+import { outputFormats, requireFormat, formatForUrl } from "./formats.ts";
 import { templateFamilies } from "./template-library.ts";
 import {
   advancedOptions,
@@ -19,11 +20,9 @@ import {
   buildSubscription,
   parseSubscription,
   defaultForm,
-  clients,
   httpUrl,
-  applyClientPreset,
+  applyFormatPreset,
   applyRulePreset,
-  getClientTarget,
   ruleCompatibility,
 } from "./converter.ts";
 import {
@@ -63,9 +62,9 @@ test("backend presets are unique; local deployments stay selected when matching 
   }
   const local = form({
     backend: "http://localhost:25500/sub",
-    client: "surge&ver=4",
+    format: "surge",
   });
-  assert.equal(applyClientPreset(local, "clash").backend, local.backend);
+  assert.equal(applyFormatPreset(local, "clash").backend, local.backend);
   assert.equal(
     applyRulePreset(local, aethersailorRules[0].url).backend,
     local.backend,
@@ -147,16 +146,18 @@ test("combines multiline sources, preserves embedded query parameters and remove
   );
   assert.equal(url.searchParams.get("target"), "clash");
 });
-test("all supported clients round trip without losing target or version", () => {
-  for (const client of clients) {
+test("all output formats round trip without losing target or version", () => {
+  for (const format of outputFormats) {
     const generated = buildSubscription(
-      form({ client: client.value, config: "" }),
+      form({ format: format.value, config: "" }),
     );
     assert.equal(
-      getClientTarget(parseSubscription(generated).client),
-      getClientTarget(client.value),
+      parseSubscription(generated).format,
+      format.value,
     );
     assert.equal(buildSubscription(parseSubscription(generated)), generated);
+    assert.equal(formatForUrl(generated)?.value, format.value);
+    assert.equal(new URL(generated).searchParams.get("ver"), format.version || null);
   }
 });
 test("advanced parameters round trip unicode, regex, fractional days, and false flags", () => {
@@ -190,8 +191,8 @@ test("preserves backend subpaths and avoids duplicate sub endpoint", () => {
     );
   }
 });
-test("only includes client-specific flags for their matching target", () => {
-  const f = form({ client: "singbox", config: "" });
+test("only includes format-specific flags for their matching target", () => {
+  const f = form({ format: "singbox", config: "" });
   f.flags["singbox.ipv6"] = true;
   const p = new URL(buildSubscription(f)).searchParams;
   assert.equal(p.get("singbox.ipv6"), "1");
@@ -200,32 +201,25 @@ test("only includes client-specific flags for their matching target", () => {
   assert.equal(p.has("new_name"), false);
 });
 
-test("modern choices share target=clash and switch known backends and templates", () => {
-  for (const client of ["clash", "clash-verge", "flclash", "nikki"]) {
-    const next = applyClientPreset(
-      form({ client: "surge&ver=4", backend: "https://api.v1.mk" }),
-      client,
-    );
-    assert.equal(next.backend, "https://api.asailor.org");
-    assert.equal(next.config, defaultTemplate.url);
-    assert.equal(
-      new URL(buildSubscription(next)).searchParams.get("target"),
-      "clash",
-    );
-    assert.equal(
-      new URL(buildSubscription(next)).searchParams.get("expand"),
-      "false",
-    );
-  }
-  const legacy = applyClientPreset(form(), "surge&ver=4");
-  assert.equal(legacy.backend, "https://api.asailor.org");
-  assert.match(legacy.config, /ACL4SSR/);
-  assert.equal(ruleCompatibility(legacy).errors.length, 0);
+test("Mihomo format selects a supported backend and keeps its required template flags", () => {
+  const next = applyFormatPreset(
+    form({ format: "surge", backend: "https://api.v1.mk" }),
+    "clash",
+  );
+  assert.equal(next.backend, "https://api.asailor.org");
+  assert.equal(next.config, defaultTemplate.url);
+  const params = new URL(buildSubscription(next)).searchParams;
+  assert.equal(params.get("target"), "clash");
+  assert.equal(params.get("expand"), "false");
+  const surge = applyFormatPreset(form(), "surge");
+  assert.equal(surge.backend, "https://api.asailor.org");
+  assert.match(surge.config, /ACL4SSR/);
+  assert.equal(ruleCompatibility(surge).errors.length, 0);
 });
 test("all eight templates apply safe flags and preserve verified or custom backends", () => {
   for (const rule of aethersailorRules) {
     const original = form({
-      client: "surge&ver=4",
+      format: "surge",
       backend: "https://sub-server.v2rayssr.com/sub/",
     });
     original.flags.expand = true;
@@ -233,7 +227,7 @@ test("all eight templates apply safe flags and preserve verified or custom backe
     original.flags.new_name = false;
     const next = applyRulePreset(original, rule.url);
     assert.equal(next.backend, original.backend);
-    assert.equal(next.client, "clash");
+    assert.equal(next.format, "clash");
     assert.equal(next.flags.expand, false);
     assert.equal(next.flags.list, false);
     assert.equal(next.flags.new_name, true);
@@ -279,15 +273,15 @@ test("detects Raw and CDN template URLs without matching unrelated hosts or YAML
     undefined,
   );
 });
-test("incompatible client, list-only, old fields, or expansion cannot silently discard COR rules", () => {
-  for (const client of [
-    "surge&ver=4",
+test("incompatible format, list-only, old fields, or expansion cannot silently discard COR rules", () => {
+  for (const format of [
+    "surge",
     "singbox",
     "quanx",
     "shadowrocket",
     "loon",
   ])
-    assert.throws(() => buildSubscription(form({ client })), /现代客户端/);
+    assert.throws(() => buildSubscription(form({ format })), /Mihomo 格式/);
   for (const [key, value] of [
     ["expand", true],
     ["list", true],
@@ -373,21 +367,21 @@ test("all extension conversion templates enforce their target and runtime YAML s
     );
   }
 });
-test("switching clients preserves custom templates and pairs extension variants with Stash", () => {
+test("switching formats preserves custom templates and pairs extension variants with Stash", () => {
   const original = applyRulePreset(
     form(),
     bundledCatalog.templates.find(
       (t) => t.id === "ads-only/clash/lite-fallback",
     ).url,
   );
-  const stash = applyClientPreset(original, "stash");
+  const stash = applyFormatPreset(original, "stash");
   assert.equal(findTemplate(stash.config).id, "ads-only/stash/lite-fallback");
-  assert.equal(applyClientPreset(stash, "clash").config, original.config);
+  assert.equal(applyFormatPreset(stash, "clash").config, original.config);
   const unknown = form({
-    client: "surge&ver=4",
+    format: "surge",
     config: "https://example.com/custom.ini",
   });
-  assert.equal(applyClientPreset(unknown, "clash").config, unknown.config);
+  assert.equal(applyFormatPreset(unknown, "clash").config, unknown.config);
   const raw = defaultTemplate.url.replace("/main/", "/refs/heads/main/");
   assert.equal(findTemplate(raw).id, defaultTemplate.id);
   assert.equal(
@@ -400,7 +394,7 @@ test("switching clients preserves custom templates and pairs extension variants 
   );
   const upstream = applyRulePreset(form(), aethersailorRules[3].url);
   assert.equal(
-    findTemplate(applyClientPreset(upstream, "stash").config).id,
+    findTemplate(applyFormatPreset(upstream, "stash").config).id,
     "custom-only/stash/lite-fallback",
   );
 });
@@ -467,7 +461,7 @@ test("catalog rejects incompatible versions, duplicate entries and mismatched ta
   );
 });
 test("Stash probe accepts provider-based rules and isolates template and target reports", () => {
-  const stash = applyClientPreset(form(), "stash"),
+  const stash = applyFormatPreset(form(), "stash"),
     profile = probeProfile(stash);
   const output = `proxies: [{name: Test, server: 198.51.100.1}]
 proxy-groups: [{name: Group, type: select, proxies: [Test]}]
@@ -524,8 +518,11 @@ test("HTTP body cap cancels oversized streamed responses", async () => {
   assert.equal(cancelled, true);
 });
 
-test("removed clients have no selection, import, or preset compatibility path", () => {
-  for (const client of [
+test("removed targets and application aliases have no selection, import, or preset compatibility path", () => {
+  for (const format of [
+    "clash-verge",
+    "flclash",
+    "nikki",
     "clash-legacy",
     "clash-android",
     "surge&ver=2",
@@ -538,31 +535,31 @@ test("removed clients have no selection, import, or preset compatibility path", 
     "ssd",
   ]) {
     assert.equal(
-      clients.some((c) => c.value === client),
+      outputFormats.some((c) => c.value === format),
       false,
     );
-    assert.throws(() => applyClientPreset(form(), client), /暂不支持/);
+    assert.throws(() => applyFormatPreset(form(), format), /暂不支持/);
     assert.throws(
-      () => buildSubscription(form({ client, config: "" })),
+      () => buildSubscription(form({ format, config: "" })),
       /暂不支持/,
     );
     assert.throws(
       () =>
         parseSubscription(
-          `https://example.com/sub?target=${client}&url=https://example.org/source`,
+          `https://example.com/sub?target=${format}&url=https://example.org/source`,
         ),
       /暂不支持/,
     );
   }
-  const mihomo = clients.filter((c) => c.group === "Mihomo 内核");
-  assert.deepEqual(
-    mihomo.map((c) => getClientTarget(c.value)),
-    Array(mihomo.length).fill("clash"),
-  );
-  assert.ok(
-    clients.some((c) => c.value === "stash" && c.group === "其他客户端"),
-  );
-  assert.ok(clients.some((c) => c.value === "v2ray" && c.group === "通用格式"));
+  assert.equal(outputFormats.filter((format) => format.value === "clash").length, 1);
+  const signatures = outputFormats.map((format) => {
+    const url = new URL(buildSubscription(form({ format: format.value, config: "" })));
+    return `${url.searchParams.get("target")}/${url.searchParams.get("ver") || ""}`;
+  });
+  assert.equal(new Set(signatures).size, outputFormats.length);
+  assert.equal(requireFormat("clash").value, "clash");
+  assert.equal(formatForUrl("https://example.org/sub?target=clash-verge"), undefined);
+  assert.equal(formatForUrl("not a URL"), undefined);
 });
 test("backend requirements reject known MRS failures but allow GEOSITE-only and current verified results", () => {
   const unsupported = form({ backend: "https://api.v1.mk" });
@@ -581,7 +578,7 @@ test("backend requirements reject known MRS failures but allow GEOSITE-only and 
   const supported = applyRulePreset(unsupported, gfw.url);
   assert.equal(supported.backend, unsupported.backend);
   assert.doesNotThrow(() => buildSubscription(supported));
-  const stash = applyClientPreset(supported, "stash");
+  const stash = applyFormatPreset(supported, "stash");
   assert.equal(stash.backend, "https://api.asailor.org");
   const input = new URL("https://api.v1.mk/sub");
   input.searchParams.set("target", "clash");
@@ -595,6 +592,17 @@ test("backend requirements reject known MRS failures but allow GEOSITE-only and 
     false,
   );
 });
+test("FFQ official endpoints accept GFW templates while incompatible MRS and Stash templates stay blocked", () => {
+  const gfw = bundledCatalog.templates.find((item) => item.id === "ads-only/clash/gfw");
+  for (const backend of ["https://edge-api-v1.ffqla.com/sub", "https://api.ytools.cc/sub"]) {
+    assert.ok(getBackendPreset(backend));
+    assert.doesNotThrow(() => buildSubscription(form({ backend, config: gfw.url })));
+    assert.throws(() => buildSubscription(form({ backend })), /MRS/);
+    const stash = applyFormatPreset(form({ config: gfw.url }), "stash");
+    assert.throws(() => buildSubscription({ ...stash, backend }), /Stash/);
+  }
+});
+
 test("unified template families keep source, runtime purpose and variants together without retired entries", () => {
   const families = templateFamilies();
   const extension = families.find((f) => f.id === "subweave/standard");
@@ -646,12 +654,12 @@ test("advanced options are isolated drafts, reset to template defaults and prese
 });
 
 test("recommended modern flags preserve full rules and native-provider negotiation", () => {
-  for (const client of ["clash", "clash-verge", "flclash", "nikki", "stash"]) {
-    const flags = defaultAdvanced({}, client).flags;
+  for (const format of ["clash", "stash"]) {
+    const flags = defaultAdvanced({}, format).flags;
     assert.equal(flags.list, false);
     assert.equal(flags.expand, false);
     assert.equal(flags.insert, false);
-    assert.equal(flags.new_name, client === "stash" ? null : true);
+    assert.equal(flags.new_name, format === "stash" ? null : true);
     for (const key of [
       "udp",
       "tfo",
@@ -664,7 +672,7 @@ test("recommended modern flags preserve full rules and native-provider negotiati
     ])
       assert.equal(flags[key], null);
     const generated = new URL(
-      buildSubscription(form({ client, config: "", flags })),
+      buildSubscription(form({ format, config: "", flags })),
     );
     assert.equal(generated.searchParams.get("insert"), "false");
     assert.equal(generated.searchParams.has("udp"), false);
@@ -678,7 +686,7 @@ test("recommended modern flags preserve full rules and native-provider negotiati
   );
 });
 
-test("filter profile is preserved when switching clients and all five schemes are discoverable", () => {
+test("filter profile is preserved when switching formats and all five schemes are discoverable", () => {
   assert.equal(bundledCatalog.schemaVersion, 2);
   assert.equal(bundledCatalog.profiles.length, 5);
   for (const profile of bundledCatalog.profiles) {
@@ -686,12 +694,12 @@ test("filter profile is preserved when switching clients and all five schemes ar
       (t) => t.id === `${profile.id}/clash/lite-fallback`,
     );
     const selected = applyRulePreset(form(), entry.url);
-    const stash = applyClientPreset(selected, "stash");
+    const stash = applyFormatPreset(selected, "stash");
     assert.equal(
       findTemplate(stash.config).id,
       `${profile.id}/stash/lite-fallback`,
     );
-    assert.equal(applyClientPreset(stash, "clash-verge").config, entry.url);
+    assert.equal(applyFormatPreset(stash, "clash").config, entry.url);
     const input = new URL(buildSubscription(stash));
     assert.ok(
       input.searchParams.get("config").includes(`/dist/${profile.id}/`),
